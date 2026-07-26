@@ -1,0 +1,61 @@
+/* Cıvıl tasarım belirteçleri.
+   Duolingo'nun görsel dili birebir hedeflendi: doygun yeşil, 3B basma
+   butonlar, yuvarlak ağır tipografi. Renk adları da aynı mantıkta
+   (hayvan adları) tutuldu ki kod okunurken hangi rolün ne olduğu belli olsun. */
+
+:root {
+  /* Ana renkler */
+  --green: #58cc02;
+  --green-dark: #58a700; /* buton gölgesi */
+  --green-light: #89e219;
+  --green-wash: #d7ffb8; /* doğru cevap zemini */
+
+  --red: #ff4b4b;
+  --red-dark: #ea2b2b;
+  --red-wash: #ffdfe0;
+
+  --blue: #1cb0f6;
+  --blue-dark: #1899d6;
+  --blue-wash: #ddf4ff;
+
+  --gold: #ffc800;
+  --gold-dark: #e5a400;
+  --orange: #ff9600;
+  --purple: #ce82ff;
+
+  /* Nötrler */
+  --eel: #4b4b4b; /* ana metin */
+  --wolf: #777777; /* ikincil metin */
+  --hare: #afafaf; /* pasif */
+  --swan: #e5e5e5; /* kenarlık */
+  --polar: #f7f7f7; /* zemin */
+  --snow: #ffffff;
+
+  /* Tipografi */
+  --font: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --w-black: 900;
+  --w-bold: 800;
+  --w-semi: 700;
+  --w-body: 600;
+
+  --t-display: 2rem;
+  --t-title: 1.5rem;
+  --t-lead: 1.25rem;
+  --t-body: 1rem;
+  --t-small: 0.875rem;
+  --t-tiny: 0.75rem;
+
+  /* Ölçü */
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 24px;
+  --r-pill: 999px;
+
+  --shadow-btn: 0 4px 0; /* renk sınıf içinde verilir */
+  --shadow-card: 0 2px 0 var(--swan);
+  --shadow-pop: 0 8px 24px rgba(0, 0, 0, 0.12);
+
+  --sidebar-w: 244px;
+  --rail-w: 328px;
+}
