@@ -10,8 +10,12 @@ export function Logo({ size = 40 }: { size?: number }) {
         fill="var(--green)"
       />
       <path
-        d="M20 34.5 31.2 20.2a2.2 2.2 0 0 1 3.5 0L46 34.5a1.4 1.4 0 0 1-1.7 2.1l-9.6-4.2a2.2 2.2 0 0 0-1.8 0l-9.6 4.2a1.4 1.4 0 0 1-1.7-2.1Z"
-        fill="var(--snow)"
+        d="M22 34.5 32 24l10 10.5"
+        fill="none"
+        stroke="var(--snow)"
+        strokeWidth="6.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
     </svg>
   );

@@ -76,9 +76,16 @@ export async function buildLesson(lessonId: number, unitId: number, count = 16):
     ex.push({ kind: 'choice', word: w, options, ask: Math.random() < 0.5 ? 'en2tr' : 'tr2en' });
   }
 
-  // 3. Eşleştirme — beş çiftlik tek ekran
-  if (words.length >= 5) {
-    ex.push({ kind: 'match', pairs: shuffle(words).slice(0, 5) });
+  // 3. Eşleştirme — beş çiftlik tek ekran.
+  // Bir derse ortalama 4-5 kelime düşüyor; eksik kalırsa aynı üniteden daha
+  // önce öğrenilmiş kelimelerle tamamlanıyor (tekrar etkisi de oluyor).
+  const matchPairs = [...words];
+  for (const d of distractors) {
+    if (matchPairs.length >= 5) break;
+    if (!matchPairs.some((w) => w.id === d.id)) matchPairs.push(d);
+  }
+  if (matchPairs.length >= 4) {
+    ex.push({ kind: 'match', pairs: shuffle(matchPairs).slice(0, 5) });
   }
 
   // 4. Cümle çalışmaları
