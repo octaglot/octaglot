@@ -4,8 +4,9 @@ import { useGame, MAX_HEARTS, REFILL_COST } from './lib/store';
 import { buildLesson, buildReview } from './lib/generate';
 import { Logo, Mark, Wordmark } from './components/Logo';
 import { Mascot } from './components/Mascot';
-import { Flame, Gear, Gem, Heart, Home, Lock, Person, Repeat } from './components/Icons';
+import { Bolt, Flame, Gear, Gem, Heart, Home, Lock, Person, Repeat } from './components/Icons';
 import { MapScreen } from './screens/MapScreen';
+import { StormScreen } from './screens/StormScreen';
 import { LessonScreen, type LessonResult } from './screens/LessonScreen';
 import { ResultScreen } from './screens/ResultScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
@@ -15,6 +16,7 @@ type View =
   | { name: 'map' }
   | { name: 'profile' }
   | { name: 'settings' }
+  | { name: 'storm' }
   | { name: 'lesson'; title: string; exercises: Exercise[]; words: Word[]; lesson: Lesson | null }
   | { name: 'result'; result: LessonResult; lesson: Lesson | null; unit: Unit | null };
 
@@ -122,6 +124,10 @@ export default function App() {
     );
   }
 
+  if (view.name === 'storm') {
+    return <StormScreen onQuit={() => setView({ name: 'map' })} />;
+  }
+
   if (view.name === 'result') {
     return (
       <ResultScreen
@@ -163,6 +169,18 @@ export default function App() {
           onClick={startReview}
           locked={dueCount === 0}
           lockedHint="Birkaç ders sonra açılır"
+        />
+        {/* Fırtına havuzu bitmiş derslerin kelimelerinden kuruluyor; havuz
+            küçükken aynı çift üst üste gelir, o yüzden 20 kelimeden önce
+            kilitli duruyor. */}
+        <NavItem
+          icon={<Bolt />}
+          label="Fırtına"
+          /* Tekrar gibi tam ekran açılır; rayda etkin hâli hiç görünmez. */
+          on={false}
+          onClick={() => setView({ name: 'storm' })}
+          locked={game.learnedWordCount < 20}
+          lockedHint="20 kelime öğrenince açılır"
         />
         <NavItem icon={<Person />} label="Profil" on={view.name === 'profile'} onClick={() => setView({ name: 'profile' })} />
         <NavItem icon={<Gear />} label="Ayarlar" on={view.name === 'settings'} onClick={() => setView({ name: 'settings' })} />

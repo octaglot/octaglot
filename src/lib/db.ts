@@ -133,6 +133,15 @@ export async function setStat(key: string, value: number): Promise<void> {
   );
 }
 
+/* Fırtına havuzu: bitmiş derslerin bütün kelimeleri. */
+export async function getWordsByLessons(lessonIds: number[]): Promise<Word[]> {
+  if (!lessonIds.length) return [];
+  if (!isTauri) return mockContent.byLessons(lessonIds);
+  const db = await openContent();
+  const holes = lessonIds.map((_, i) => `$${i + 1}`).join(',');
+  return db.select<Word[]>(`SELECT * FROM words WHERE lesson_id IN (${holes})`, lessonIds);
+}
+
 export async function getUnitWordCount(unitId: number): Promise<number> {
   const db = await openContent();
   const r = await db.select<{ c: number }[]>('SELECT COUNT(*) AS c FROM words WHERE unit_id = $1', [unitId]);

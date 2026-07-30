@@ -45,6 +45,7 @@ export const mockContent = {
       .sort(() => Math.random() - 0.5)
       .slice(0, limit),
   byIds: (ids: number[]) => data.words.filter((w) => ids.includes(w.id)),
+  byLessons: (lessonIds: number[]) => data.words.filter((w) => lessonIds.includes(w.lesson_id)),
 };
 
 export const mockUser = memory;
