@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { openUser, getUnits, getLessons } from './db';
+import { openUser, getUnits, getLessons, getStat, setStat } from './db';
+import { stormXp } from './storm';
 import { isTauri } from './mock';
 import type { Lesson, Unit } from './types';
 
@@ -34,6 +35,16 @@ type State = {
   done: Map<number, { accuracy: number; times: number }>;
   todayXp: number;
   profile: Profile;
+  /* Vadesi gelmiş tekrar kelimesi sayısı. Tekrar modunun kilitli mi açık mı
+     olduğunu yan menünün bilmesi gerekiyor; her çizimde veritabanına sormamak
+     için sayı burada tutulup ders bitiminde tazeleniyor. */
+  dueCount: number;
+  /* Fırtına: rekor ve bugünkü tur sayısı. Tur sayısı XP tavanı için gerekiyor,
+     her turda veritabanına sormamak için burada tutuluyor. */
+  stormBest: number;
+  stormRunsToday: number;
+  /* Bitmiş derslerin kelime sayısı — fırtına havuzunun büyüklüğü, kilit koşulu. */
+  learnedWordCount: number;
 
   init: () => Promise<void>;
   addXp: (n: number) => Promise<void>;
@@ -41,8 +52,11 @@ type State = {
   refillHearts: (withGems: boolean) => Promise<boolean>;
   completeLesson: (lessonId: number, accuracy: number, xp: number) => Promise<void>;
   reviewWord: (wordId: number, correct: boolean) => Promise<void>;
+  recordStorm: (score: number) => Promise<number>;
   dueWordIds: (limit: number) => Promise<number[]>;
+  refreshDue: () => Promise<void>;
   setName: (name: string) => Promise<void>;
+  setDailyGoal: (goal: number) => Promise<void>;
 };
 
 const blank: Profile = {
@@ -62,6 +76,10 @@ export const useGame = create<State>((set, get) => ({
   lessons: [],
   done: new Map(),
   todayXp: 0,
+  dueCount: 0,
+  stormBest: 0,
+  stormRunsToday: 0,
+  learnedWordCount: 0,
   profile: blank,
 
   async init() {
@@ -112,7 +130,24 @@ export const useGame = create<State>((set, get) => ({
       [today],
     );
 
-    set({ ready: true, units, lessons, done, profile: p, todayXp: xpToday[0]?.s ?? 0 });
+    const [stormBest, stormRunsToday] = await Promise.all([getStat('storm_best'), getStat(`storm_runs_${today}`)]);
+
+    /* Bitmiş derslerin kelime sayısı lessons tablosundaki word_count'tan
+       toplanıyor — içerik veritabanına ikinci bir sorgu atmaya gerek yok. */
+    const learnedWordCount = lessons.filter((l) => done.has(l.id)).reduce((n, l) => n + l.word_count, 0);
+
+    set({
+      ready: true,
+      units,
+      lessons,
+      done,
+      profile: p,
+      todayXp: xpToday[0]?.s ?? 0,
+      stormBest,
+      stormRunsToday,
+      learnedWordCount,
+    });
+    await get().refreshDue();
   },
 
   async addXp(n) {
@@ -181,6 +216,12 @@ export const useGame = create<State>((set, get) => ({
     });
     set({ done });
 
+    /* Ders ilk kez bitiyorsa kelimeleri fırtına havuzuna katılır. */
+    if (!prev) {
+      const lesson = get().lessons.find((l) => l.id === lessonId);
+      if (lesson) set({ learnedWordCount: get().learnedWordCount + lesson.word_count });
+    }
+
     // Ders bitişinde elmas ödülü — mükemmel derse ekstra.
     const bonus = accuracy === 1 ? 3 : 1;
     const p = get().profile;
@@ -191,6 +232,22 @@ export const useGame = create<State>((set, get) => ({
     set({ profile: { ...get().profile, gems: p.gems + bonus } });
 
     await get().addXp(xp);
+    await get().refreshDue();
+  },
+
+  /* Fırtına turu sonu: XP yaz, rekoru güncelle, günün tur sayacını artır.
+     Kazanılan XP döner — sonuç ekranı onu göstersin diye. */
+  async recordStorm(score) {
+    const today = dayKey();
+    const runs = get().stormRunsToday;
+    const xp = stormXp(score, runs);
+    const best = Math.max(get().stormBest, score);
+
+    await Promise.all([setStat('storm_best', best), setStat(`storm_runs_${today}`, runs + 1)]);
+    set({ stormBest: best, stormRunsToday: runs + 1 });
+
+    if (xp > 0) await get().addXp(xp);
+    return xp;
   },
 
   /* Aralıklı tekrar: doğru bilinen kelime katlanarak uzar, yanlış olan başa döner. */
@@ -213,6 +270,16 @@ export const useGame = create<State>((set, get) => ({
     );
   },
 
+  async refreshDue() {
+    if (!isTauri) return set({ dueCount: 0 });
+    const db = await openUser();
+    const rows = await db.select<{ n: number }[]>(
+      'SELECT COUNT(*) AS n FROM srs WHERE due <= $1',
+      [new Date().toISOString()],
+    );
+    set({ dueCount: rows[0]?.n ?? 0 });
+  },
+
   async dueWordIds(limit) {
     if (!isTauri) return [];
     const db = await openUser();
@@ -229,6 +296,14 @@ export const useGame = create<State>((set, get) => ({
       await db.execute('UPDATE profile SET name = $1 WHERE id = 1', [name]);
     }
     set({ profile: { ...get().profile, name } });
+  },
+
+  async setDailyGoal(goal) {
+    if (isTauri) {
+      const db = await openUser();
+      await db.execute('UPDATE profile SET daily_goal = $1 WHERE id = 1', [goal]);
+    }
+    set({ profile: { ...get().profile, daily_goal: goal } });
   },
 }));
 

@@ -56,6 +56,13 @@ export async function openUser(): Promise<Database> {
       lapses INTEGER NOT NULL DEFAULT 0
     );
     CREATE INDEX IF NOT EXISTS idx_srs_due ON srs(due);
+
+    -- Sayısal kayıtlar (fırtına rekoru, günlük tur sayısı). Profil şeması
+    -- sabit kalsın diye ayrı tablo: profile'a kolon eklemek göç gerektirirdi.
+    CREATE TABLE IF NOT EXISTS stats (
+      key TEXT PRIMARY KEY,
+      value INTEGER NOT NULL DEFAULT 0
+    );
   `);
   return userDb;
 }
@@ -105,6 +112,25 @@ export async function getWordsByIds(ids: number[]): Promise<Word[]> {
   const db = await openContent();
   const holes = ids.map((_, i) => `$${i + 1}`).join(',');
   return db.select<Word[]>(`SELECT * FROM words WHERE id IN (${holes})`, ids);
+}
+
+/* ---------------- kullanıcı sayaçları ---------------- */
+
+export async function getStat(key: string): Promise<number> {
+  if (!isTauri) return 0;
+  const db = await openUser();
+  const rows = await db.select<{ value: number }[]>('SELECT value FROM stats WHERE key = $1', [key]);
+  return rows[0]?.value ?? 0;
+}
+
+export async function setStat(key: string, value: number): Promise<void> {
+  if (!isTauri) return;
+  const db = await openUser();
+  await db.execute(
+    `INSERT INTO stats (key, value) VALUES ($1, $2)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+    [key, value],
+  );
 }
 
 export async function getUnitWordCount(unitId: number): Promise<number> {
