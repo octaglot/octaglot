@@ -69,6 +69,8 @@ export default function App() {
   async function finish(result: LessonResult, lesson: Lesson | null) {
     if (!result.failed && lesson) await completeLesson(lesson.id, result.accuracy, result.xp);
     else if (!result.failed) await game.addXp(result.xp);
+    // Başarısız derste de en uzun seri sayılır: görev "doğru" ölçüyor, "bitirme" değil.
+    await game.bumpQuest('combo', result.bestCombo);
     setView({ name: 'result', result, lesson, unit: lastUnit });
   }
 

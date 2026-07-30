@@ -1,13 +1,21 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ExerciseView, grade, correctAnswerText, type AnswerValue } from '../components/Exercises';
 import { Mascot } from '../components/Mascot';
-import { Flame, Heart, Speaker } from '../components/Icons';
+import { Close, Flame, Heart, Speaker } from '../components/Icons';
 import { useGame } from '../lib/store';
 import { sfx, speak } from '../lib/audio';
 import type { Exercise } from '../lib/types';
 
-export type LessonResult = { xp: number; accuracy: number; correct: number; total: number; failed: boolean };
+export type LessonResult = {
+  xp: number;
+  accuracy: number;
+  correct: number;
+  total: number;
+  failed: boolean;
+  /* Turun en uzun doğru serisi — kombo görevi bunu ölçüyor. */
+  bestCombo: number;
+};
 
 type Props = {
   title: string;
@@ -23,6 +31,8 @@ export function LessonScreen({ title, exercises, onQuit, onFinish }: Props) {
   const [verdict, setVerdict] = useState<'none' | 'right' | 'wrong'>('none');
   const [right, setRight] = useState(0);
   const [combo, setCombo] = useState(0);
+  const [bestCombo, setBestCombo] = useState(0);
+  const continueRef = useRef<HTMLButtonElement>(null);
 
   const ex = exercises[i];
   const total = exercises.length;
@@ -64,7 +74,11 @@ export function LessonScreen({ title, exercises, onQuit, onFinish }: Props) {
     if (ok) {
       sfx.correct();
       setRight((r) => r + 1);
-      setCombo((c) => c + 1);
+      setCombo((c) => {
+        const n = c + 1;
+        setBestCombo((b) => Math.max(b, n));
+        return n;
+      });
       setVerdict('right');
     } else {
       sfx.wrong();
@@ -81,7 +95,7 @@ export function LessonScreen({ title, exercises, onQuit, onFinish }: Props) {
       const accuracy = right / total;
       const xp = Math.round(10 + accuracy * 10);
       sfx.complete();
-      onFinish({ xp, accuracy, correct: right, total, failed: false });
+      onFinish({ xp, accuracy, correct: right, total, failed: false, bestCombo });
     } else {
       setI((n) => n + 1);
     }
@@ -91,7 +105,7 @@ export function LessonScreen({ title, exercises, onQuit, onFinish }: Props) {
   useEffect(() => {
     if (profile.hearts <= 0 && verdict === 'wrong') {
       const t = setTimeout(() => {
-        onFinish({ xp: 0, accuracy: right / total, correct: right, total, failed: true });
+        onFinish({ xp: 0, accuracy: right / total, correct: right, total, failed: true, bestCombo });
       }, 1400);
       return () => clearTimeout(t);
     }
@@ -110,35 +124,68 @@ export function LessonScreen({ title, exercises, onQuit, onFinish }: Props) {
 
   if (!ex) return null;
 
-  const banner = verdict === 'right' ? 'var(--green-wash)' : 'var(--red-wash)';
-  const bannerText = verdict === 'right' ? 'var(--green-dark)' : 'var(--red-dark)';
+  /* Bant nötr zeminde durur; renk sinyalini üstteki çizgi, metin ve maskot
+     taşır. Koca renkli bir slab hem koyu temada çamurlaşıyordu hem de paletin
+     geri kalanıyla kavga ediyordu. Renkli dolgu artık yalnızca cevap
+     kutucuklarında (.tile--right / .tile--wrong). */
+  const bannerText = verdict === 'right' ? 'var(--success-text)' : 'var(--danger-text)';
+  const bannerEdge = verdict === 'right' ? 'var(--success)' : 'var(--danger)';
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--snow)' }}>
-      {/* üst bar */}
-      <header style={{ display: 'flex', alignItems: 'center', gap: 20, padding: '20px 32px' }}>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--surface)', overflow: 'hidden' }}>
+      {/* Üst bar. Soldaki 96px trafik ışıklarına ayrıldı — pencere başlığı gizli
+          olduğu için ✕ düğmesi tam onların üstüne geliyordu. Çubuğun kendisi
+          sürükleme alanı; içindeki düğmeler tıklanabilir kalıyor. */}
+      <header
+        data-tauri-drag-region="deep"
+        style={{ display: 'flex', alignItems: 'center', gap: 20, padding: '38px 32px 18px 96px' }}
+      >
+        {/* Çıkış ve can, düz metin/ikonken zeminde kayboluyordu; ikisi de
+            kendi zeminine oturunca her iki temada da net okunuyor. */}
         <button
           onClick={onQuit}
           aria-label="Dersten çık"
-          style={{ border: 0, background: 'none', fontSize: 28, color: 'var(--hare)', fontWeight: 800 }}
+          style={{
+            display: 'grid',
+            placeItems: 'center',
+            width: 38,
+            height: 38,
+            flexShrink: 0,
+            borderRadius: 'var(--r-pill)',
+            border: 0,
+            background: 'var(--line)',
+            color: 'var(--ink-2)',
+          }}
         >
-          ✕
+          <Close size={20} />
         </button>
-        <div style={{ flex: 1, height: 16, background: 'var(--swan)', borderRadius: 'var(--r-pill)' }}>
+        <div style={{ flex: 1, height: 16, background: 'var(--line)', borderRadius: 'var(--r-pill)' }}>
           <motion.div
             animate={{ width: `${progress}%` }}
             transition={{ type: 'spring', stiffness: 180, damping: 22 }}
-            style={{ height: '100%', background: 'var(--green)', borderRadius: 'var(--r-pill)' }}
+            style={{ height: '100%', background: 'var(--brand)', borderRadius: 'var(--r-pill)' }}
           />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 900, color: 'var(--red)' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            fontWeight: 900,
+            flexShrink: 0,
+            color: 'var(--danger-text)',
+            background: 'var(--danger-wash)',
+            padding: '6px 14px 6px 10px',
+            borderRadius: 'var(--r-pill)',
+          }}
+        >
           <motion.span
             key={profile.hearts}
             initial={{ scale: 1.6 }}
             animate={{ scale: 1 }}
             style={{ display: 'grid', placeItems: 'center' }}
           >
-            <Heart size={26} />
+            <Heart size={22} color="var(--danger)" />
           </motion.span>
           {profile.hearts}
         </div>
@@ -149,9 +196,9 @@ export function LessonScreen({ title, exercises, onQuit, onFinish }: Props) {
           içeriğin üstünü kırpardı. */}
       <div className="scroll" style={{ flex: 1, padding: '12px 32px 32px', display: 'flex' }}>
         <div style={{ maxWidth: 720, width: '100%', margin: 'auto' }}>
-          <div style={{ color: 'var(--hare)', fontWeight: 800, fontSize: 'var(--t-tiny)', letterSpacing: 1, marginBottom: 20 }}>
+          <div style={{ color: 'var(--muted)', fontWeight: 800, fontSize: 'var(--t-tiny)', letterSpacing: 1, marginBottom: 20 }}>
             {title.toLocaleUpperCase('tr')}
-            {combo >= 3 && <span style={{ color: 'var(--orange)', marginLeft: 12, display: 'inline-flex', alignItems: 'center', gap: 4, verticalAlign: 'middle' }}>
+            {combo >= 3 && <span style={{ color: 'var(--accent)', marginLeft: 12, display: 'inline-flex', alignItems: 'center', gap: 4, verticalAlign: 'middle' }}>
                 <Flame size={16} /> {combo} SERİ
               </span>}
           </div>
@@ -169,65 +216,99 @@ export function LessonScreen({ title, exercises, onQuit, onFinish }: Props) {
         </div>
       </div>
 
-      {/* geri bildirim + kontrol */}
-      <AnimatePresence>
-        {verdict !== 'none' && (
-          <motion.div
-            initial={{ y: 120 }}
-            animate={{ y: 0 }}
-            exit={{ y: 120 }}
-            transition={{ type: 'spring', stiffness: 260, damping: 26 }}
-            style={{ background: banner, padding: '20px 32px' }}
-          >
-            <div
-              style={{
-                maxWidth: 720,
-                margin: '0 auto',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 16,
-                color: bannerText,
-              }}
-            >
-              <Mascot mood={verdict === 'right' ? 'happy' : 'sad'} size={64} />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 'var(--t-lead)', fontWeight: 900 }}>
-                  {verdict === 'right' ? 'Harika!' : 'Doğru cevap:'}
-                </div>
-                {verdict === 'wrong' && (
-                  <div style={{ fontWeight: 700, marginTop: 2 }}>{correctAnswerText(ex)}</div>
-                )}
-                {ex.kind !== 'flashcard' && ex.kind !== 'match' && 'sentence' in ex && (
-                  <button
-                    className="btn btn--ghost"
-                    onClick={() => speak(ex.sentence.en)}
-                    style={{ marginTop: 8, padding: '6px 12px', fontSize: 'var(--t-tiny)' }}
-                  >
-                    <Speaker size={16} /> Dinle
-                  </button>
-                )}
-              </div>
-              <button
-                className={`btn ${verdict === 'right' ? '' : 'btn--red'} btn--lg`}
-                onClick={next}
-                autoFocus
-              >
-                Devam
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Alt bant — sabit yükseklikli tek kutu.
 
-      {verdict === 'none' && (
-        <footer style={{ borderTop: '2px solid var(--swan)', padding: '20px 32px' }}>
-          <div style={{ maxWidth: 720, margin: '0 auto', display: 'flex', justifyContent: 'flex-end' }}>
+          Önceden geri bildirim şeridi akışa giriyordu: göründüğü anda kendi
+          yüksekliğini kaplayıp üstteki alıştırmayı yukarı itiyor, aynı anda
+          translate ile aşağıdan kayıyordu. İkisi üst üste binince hem içerik
+          zıplıyor hem şerit pencerenin altından taşıyordu.
+
+          Şimdi kutunun yüksekliği sabit; kontrol satırı hep yerinde duruyor ve
+          geri bildirim onun ÜSTÜNE kayıyor. overflow gizli olduğu için de
+          dışarı taşmıyor. */}
+      <div style={{ position: 'relative', minHeight: 132, flexShrink: 0, overflow: 'hidden' }}>
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            borderTop: '2px solid var(--line)',
+            padding: '20px 32px',
+            display: 'flex',
+            alignItems: 'center',
+          }}
+        >
+          <div style={{ maxWidth: 720, width: '100%', margin: '0 auto', display: 'flex', justifyContent: 'flex-end' }}>
             <button className="btn btn--lg" disabled={!canCheck} onClick={check}>
               {ex.kind === 'flashcard' ? 'Anladım' : 'Kontrol et'}
             </button>
           </div>
-        </footer>
-      )}
+        </div>
+
+        <AnimatePresence>
+          {verdict !== 'none' && (
+            <motion.div
+              initial={{ y: '100%', opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: '100%', opacity: 0 }}
+              /* Yay sertti, bant "pat" diye oturuyordu. Sona doğru yavaşlayan
+                 uzun bir eğri (easeOutQuint) yumuşak bir kayma veriyor. */
+              transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
+              /* Odak, bant yerine oturduktan SONRA veriliyor. autoFocus ile
+                 düğmeye daha o ekranın altındayken odaklanılıyor, tarayıcı da
+                 onu görünür kılmak için üstteki kaydırılabilir alanı zıplatıyordu
+                 — animasyonu bozan şey buydu. preventScroll ikinci güvence. */
+              onAnimationComplete={() => continueRef.current?.focus({ preventScroll: true })}
+              style={{
+                position: 'absolute',
+                inset: 0,
+                background: 'var(--bg)',
+                borderTop: `3px solid ${bannerEdge}`,
+                padding: '14px 32px',
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
+              <div
+                style={{
+                  maxWidth: 720,
+                  width: '100%',
+                  margin: '0 auto',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 16,
+                  color: bannerText,
+                }}
+              >
+                <Mascot mood={verdict === 'right' ? 'happy' : 'sad'} size={56} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 'var(--t-lead)', fontWeight: 900 }}>
+                    {verdict === 'right' ? 'Harika!' : 'Doğru cevap:'}
+                  </div>
+                  {verdict === 'wrong' && (
+                    <div style={{ fontWeight: 700, marginTop: 2 }}>{correctAnswerText(ex)}</div>
+                  )}
+                  {ex.kind !== 'flashcard' && ex.kind !== 'match' && 'sentence' in ex && (
+                    <button
+                      className="btn btn--ghost"
+                      onClick={() => speak(ex.sentence.en)}
+                      style={{ marginTop: 6, padding: '5px 12px', fontSize: 'var(--t-tiny)' }}
+                    >
+                      <Speaker size={16} /> Dinle
+                    </button>
+                  )}
+                </div>
+                <button
+                  ref={continueRef}
+                  className={`btn ${verdict === 'right' ? '' : 'btn--danger'} btn--lg`}
+                  onClick={next}
+                >
+                  Devam
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }

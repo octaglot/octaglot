@@ -1,6 +1,16 @@
 import { create } from 'zustand';
-import { openUser, getUnits, getLessons, getStat, setStat } from './db';
+import {
+  openUser,
+  getUnits,
+  getLessons,
+  getStat,
+  setStat,
+  loadQuests,
+  saveQuestProgress,
+  saveQuestClaim,
+} from './db';
 import { stormXp } from './storm';
+import { isComplete, nextProgress, QUEST_BONUS, QUEST_REWARD, type Quest, type QuestKind } from './quests';
 import { isTauri } from './mock';
 import type { Lesson, Unit } from './types';
 
@@ -45,6 +55,8 @@ type State = {
   stormRunsToday: number;
   /* Bitmiş derslerin kelime sayısı — fırtına havuzunun büyüklüğü, kilit koşulu. */
   learnedWordCount: number;
+  /* Bugünün üç görevi. */
+  quests: Quest[];
 
   init: () => Promise<void>;
   addXp: (n: number) => Promise<void>;
@@ -53,6 +65,8 @@ type State = {
   completeLesson: (lessonId: number, accuracy: number, xp: number) => Promise<void>;
   reviewWord: (wordId: number, correct: boolean) => Promise<void>;
   recordStorm: (score: number) => Promise<number>;
+  bumpQuest: (kind: QuestKind, n: number) => Promise<void>;
+  claimQuest: (idx: number) => Promise<void>;
   dueWordIds: (limit: number) => Promise<number[]>;
   refreshDue: () => Promise<void>;
   setName: (name: string) => Promise<void>;
@@ -80,6 +94,7 @@ export const useGame = create<State>((set, get) => ({
   stormBest: 0,
   stormRunsToday: 0,
   learnedWordCount: 0,
+  quests: [],
   profile: blank,
 
   async init() {
@@ -87,7 +102,8 @@ export const useGame = create<State>((set, get) => ({
 
     // Tarayıcıda kalıcı depolama yok — tasarımı gözden geçirmek için yeterli.
     if (!isTauri) {
-      set({ ready: true, units, lessons, done: new Map(), profile: blank, todayXp: 0 });
+      const quests = await loadQuests(dayKey());
+      set({ ready: true, units, lessons, done: new Map(), profile: blank, todayXp: 0, quests });
       return;
     }
 
@@ -136,6 +152,8 @@ export const useGame = create<State>((set, get) => ({
        toplanıyor — içerik veritabanına ikinci bir sorgu atmaya gerek yok. */
     const learnedWordCount = lessons.filter((l) => done.has(l.id)).reduce((n, l) => n + l.word_count, 0);
 
+    const quests = await loadQuests(today);
+
     set({
       ready: true,
       units,
@@ -146,6 +164,7 @@ export const useGame = create<State>((set, get) => ({
       stormBest,
       stormRunsToday,
       learnedWordCount,
+      quests,
     });
     await get().refreshDue();
   },
@@ -167,6 +186,7 @@ export const useGame = create<State>((set, get) => ({
       await db.execute('UPDATE profile SET xp = $1, streak = $2, last_active = $3 WHERE id = 1', [xp, streak, today]);
     }
     set({ profile: { ...p, xp, streak, last_active: today }, todayXp: get().todayXp + n });
+    await get().bumpQuest('xp', n);
   },
 
   async loseHeart() {
@@ -233,6 +253,43 @@ export const useGame = create<State>((set, get) => ({
 
     await get().addXp(xp);
     await get().refreshDue();
+    await get().bumpQuest('lessons', 1);
+  },
+
+  /* Görev ilerlemesinin tek kapısı. Her olay kaynağı (XP, ders, tekrar,
+     fırtına) buradan geçer; sayma kuralı `quests.ts`'te durur. */
+  async bumpQuest(kind, n) {
+    const day = dayKey();
+    const quests = get().quests;
+    if (!quests.length || n <= 0) return;
+
+    const updated = await Promise.all(
+      quests.map(async (q) => {
+        if (q.kind !== kind || isComplete(q)) return q;
+        const progress = nextProgress(q.kind, q.progress, n, q.target);
+        if (progress === q.progress) return q;
+        await saveQuestProgress(day, q.idx, progress);
+        return { ...q, progress };
+      }),
+    );
+    set({ quests: updated });
+  },
+
+  async claimQuest(idx) {
+    const q = get().quests.find((x) => x.idx === idx);
+    if (!q || !isComplete(q) || q.claimed) return;
+
+    const rest = get().quests.map((x) => (x.idx === idx ? { ...x, claimed: true } : x));
+    // Üçü de alındıysa bonus. Kontrol güncel listeye göre yapılıyor.
+    const all = rest.every((x) => x.claimed);
+    const gems = get().profile.gems + QUEST_REWARD + (all ? QUEST_BONUS : 0);
+
+    await saveQuestClaim(dayKey(), idx, new Date().toISOString());
+    if (isTauri) {
+      const db = await openUser();
+      await db.execute('UPDATE profile SET gems = $1 WHERE id = 1', [gems]);
+    }
+    set({ quests: rest, profile: { ...get().profile, gems } });
   },
 
   /* Fırtına turu sonu: XP yaz, rekoru güncelle, günün tur sayacını artır.
@@ -245,29 +302,34 @@ export const useGame = create<State>((set, get) => ({
 
     await Promise.all([setStat('storm_best', best), setStat(`storm_runs_${today}`, runs + 1)]);
     set({ stormBest: best, stormRunsToday: runs + 1 });
+    await get().bumpQuest('storm', score);
 
     if (xp > 0) await get().addXp(xp);
     return xp;
   },
 
-  /* Aralıklı tekrar: doğru bilinen kelime katlanarak uzar, yanlış olan başa döner. */
+  /* Aralıklı tekrar: doğru bilinen kelime katlanarak uzar, yanlış olan başa döner.
+     Erken dönüş yok: SRS yazımı Tauri'ye bağlı ama görev sayacı tarayıcı
+     kipinde de işlemeli. */
   async reviewWord(wordId, correct) {
-    if (!isTauri) return;
-    const db = await openUser();
-    const rows = await db.select<{ strength: number; lapses: number }[]>(
-      'SELECT strength, lapses FROM srs WHERE word_id = $1',
-      [wordId],
-    );
-    const cur = rows[0];
-    const strength = correct ? Math.min(8, (cur?.strength ?? 0) + 1) : 0;
-    const lapses = (cur?.lapses ?? 0) + (correct ? 0 : 1);
-    const days = correct ? Math.pow(2, strength - 1) : 0;
-    const due = new Date(Date.now() + days * 86400000).toISOString();
-    await db.execute(
-      `INSERT INTO srs (word_id, strength, due, lapses) VALUES ($1, $2, $3, $4)
-       ON CONFLICT(word_id) DO UPDATE SET strength = excluded.strength, due = excluded.due, lapses = excluded.lapses`,
-      [wordId, strength, due, lapses],
-    );
+    if (isTauri) {
+      const db = await openUser();
+      const rows = await db.select<{ strength: number; lapses: number }[]>(
+        'SELECT strength, lapses FROM srs WHERE word_id = $1',
+        [wordId],
+      );
+      const cur = rows[0];
+      const strength = correct ? Math.min(8, (cur?.strength ?? 0) + 1) : 0;
+      const lapses = (cur?.lapses ?? 0) + (correct ? 0 : 1);
+      const days = correct ? Math.pow(2, strength - 1) : 0;
+      const due = new Date(Date.now() + days * 86400000).toISOString();
+      await db.execute(
+        `INSERT INTO srs (word_id, strength, due, lapses) VALUES ($1, $2, $3, $4)
+         ON CONFLICT(word_id) DO UPDATE SET strength = excluded.strength, due = excluded.due, lapses = excluded.lapses`,
+        [wordId, strength, due, lapses],
+      );
+    }
+    await get().bumpQuest('review', 1);
   },
 
   async refreshDue() {

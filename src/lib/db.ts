@@ -1,6 +1,7 @@
 import Database from '@tauri-apps/plugin-sql';
 import { invoke } from '@tauri-apps/api/core';
 import { isTauri, mockContent } from './mock';
+import { dailyQuests, type Quest } from './quests';
 import type { Lesson, Sentence, Unit, Word } from './types';
 
 let contentDb: Database | null = null;
@@ -62,6 +63,17 @@ export async function openUser(): Promise<Database> {
     CREATE TABLE IF NOT EXISTS stats (
       key TEXT PRIMARY KEY,
       value INTEGER NOT NULL DEFAULT 0
+    );
+
+    -- Günlük görevler. Geçmiş günler silinmiyor: ileride takvim/rozet için veri.
+    CREATE TABLE IF NOT EXISTS quests (
+      day TEXT NOT NULL,
+      idx INTEGER NOT NULL,
+      kind TEXT NOT NULL,
+      target INTEGER NOT NULL,
+      progress INTEGER NOT NULL DEFAULT 0,
+      claimed_at TEXT,
+      PRIMARY KEY (day, idx)
     );
   `);
   return userDb;
@@ -140,6 +152,48 @@ export async function getWordsByLessons(lessonIds: number[]): Promise<Word[]> {
   const db = await openContent();
   const holes = lessonIds.map((_, i) => `$${i + 1}`).join(',');
   return db.select<Word[]>(`SELECT * FROM words WHERE lesson_id IN (${holes})`, lessonIds);
+}
+
+/* ---------------- günlük görevler ---------------- */
+
+/* Günün görevleri ilk çağrıda yazılır, sonra tablodan okunur. Üretim tohumlu
+   olduğu için yazma anı önemli değil — aynı gün hep aynı üçlü çıkar. */
+export async function loadQuests(day: string): Promise<Quest[]> {
+  const planned = dailyQuests(day);
+  if (!isTauri) return planned.map((q) => ({ ...q, progress: 0, claimed: false }));
+
+  const db = await openUser();
+  for (const q of planned) {
+    await db.execute('INSERT OR IGNORE INTO quests (day, idx, kind, target) VALUES ($1, $2, $3, $4)', [
+      day,
+      q.idx,
+      q.kind,
+      q.target,
+    ]);
+  }
+  const rows = await db.select<
+    { idx: number; kind: string; target: number; progress: number; claimed_at: string | null }[]
+  >('SELECT idx, kind, target, progress, claimed_at FROM quests WHERE day = $1 ORDER BY idx', [day]);
+
+  return rows.map((r) => ({
+    idx: r.idx,
+    kind: r.kind as Quest['kind'],
+    target: r.target,
+    progress: r.progress,
+    claimed: r.claimed_at !== null,
+  }));
+}
+
+export async function saveQuestProgress(day: string, idx: number, progress: number): Promise<void> {
+  if (!isTauri) return;
+  const db = await openUser();
+  await db.execute('UPDATE quests SET progress = $1 WHERE day = $2 AND idx = $3', [progress, day, idx]);
+}
+
+export async function saveQuestClaim(day: string, idx: number, at: string): Promise<void> {
+  if (!isTauri) return;
+  const db = await openUser();
+  await db.execute('UPDATE quests SET claimed_at = $1 WHERE day = $2 AND idx = $3', [at, day, idx]);
 }
 
 export async function getUnitWordCount(unitId: number): Promise<number> {
