@@ -1,16 +1,10 @@
 import { getDistractorWords, getLessonSentences, getLessonWords, getWordsByIds } from './db';
+import { shuffle, pick } from './rand';
 import type { Exercise, Sentence, Word } from './types';
 
-export function shuffle<T>(arr: T[]): T[] {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
-const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
+/* Rastgelelik `rand.ts`'e taşındı; buradan yeniden dışa veriliyor çünkü
+   Exercises.tsx `shuffle`'ı bu dosyadan alıyor. */
+export { shuffle, pick };
 
 /** "Don't go!" → ["Don't", 'go!'] — kelime bankası için cümleyi böler. */
 export function splitWords(en: string): string[] {
@@ -144,5 +138,3 @@ export async function buildReview(wordIds: number[], count = 12): Promise<Lesson
 
   return { exercises: shuffle(ex).slice(0, count), words };
 }
-
-export { pick };
