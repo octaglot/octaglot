@@ -4,6 +4,7 @@ import { useGame, MAX_HEARTS, REFILL_COST } from './lib/store';
 import { buildLesson, buildReview } from './lib/generate';
 import { Logo, Mark, Wordmark } from './components/Logo';
 import { Mascot } from './components/Mascot';
+import { QuestCard } from './components/QuestCard';
 import { Bolt, Flame, Gear, Gem, Heart, Home, Lock, Person, Repeat } from './components/Icons';
 import { MapScreen } from './screens/MapScreen';
 import { StormScreen } from './screens/StormScreen';
@@ -241,6 +242,8 @@ export default function App() {
           hearts={profile.hearts}
           streak={profile.streak}
         />
+
+        <QuestCard />
 
         {profile.hearts < MAX_HEARTS && (
           <Panel title="Canların eksik">
@@ -592,6 +595,10 @@ function Profile() {
           <Panel title="Biten ünite">
             <Big value={`${unitsDone}`} sub={`/ ${units.length}`} />
           </Panel>
+        </div>
+
+        <div style={{ marginTop: 18 }}>
+          <QuestCard />
         </div>
 
         {/* Maskotun çizimi Twemoji'den geliyor; CC-BY 4.0 görünür atıf istiyor. */}

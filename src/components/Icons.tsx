@@ -88,6 +88,14 @@ export const Gear = ({ size = 24, color = 'currentColor' }: P) => (
   </svg>
 );
 
+export const Target = ({ size = 24, color = 'currentColor' }: P) => (
+  <svg viewBox="0 0 24 24" style={box(size)} fill="none" stroke={color} strokeWidth="2.2" aria-hidden="true">
+    <circle cx="12" cy="12" r="9" />
+    <circle cx="12" cy="12" r="4.5" />
+    <circle cx="12" cy="12" r="1" fill={color} />
+  </svg>
+);
+
 export const Bolt = ({ size = 24, color = 'currentColor' }: P) => (
   <svg viewBox="0 0 24 24" style={box(size)} fill={color} aria-hidden="true">
     <path d="M13.4 2 4.6 13.7a.6.6 0 0 0 .48.96h5.1l-.98 7.34 8.8-11.7a.6.6 0 0 0-.48-.96h-5.1Z" />
