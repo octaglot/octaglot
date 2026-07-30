@@ -1,35 +1,96 @@
-/* Cıvıl tasarım belirteçleri.
-   Duolingo'nun görsel dili birebir hedeflendi: doygun yeşil, 3B basma
-   butonlar, yuvarlak ağır tipografi. Renk adları da aynı mantıkta
-   (hayvan adları) tutuldu ki kod okunurken hangi rolün ne olduğu belli olsun. */
+/* Octaglot tasarım belirteçleri.
+
+   Mekanik (3B basma butonlar, yuvarlak ağır tipografi) Duolingo'dan alındı,
+   renk paleti bilinçli olarak alınmadı.
+
+   İki kural:
+
+   1. Belirteç adları renk değil ROL bildirir. Bileşenlerde hex yazılmaz; bir
+      tonu değiştirmek için yalnızca bu dosya düzenlenir.
+
+   2. Mor yalnızca marka yüzeylerinde durur; NÖTRLER NEREDEYSE GRİDİR. Zemin ve
+      kenarlıklar da mora boyanınca pencerenin tamamı renkli bir sis gibi
+      görünüp gözü yoruyordu — renk, ilgi çekmesi gereken yerde kalmalı.
+
+   Markanın tonu 278°; uygulama ikonundaki gradyanla (#a843d2 → #4c087b) aynı
+   aileden olsun diye seçildi.
+
+   Karanlık tema aşağıda `:root[data-theme='dark']` altında; yalnızca değişmesi
+   gereken belirteçler ezilir. */
 
 :root {
-  /* Ana renkler */
-  --green: #58cc02;
-  --green-dark: #58a700; /* buton gölgesi */
-  --green-light: #89e219;
-  --green-wash: #d7ffb8; /* doğru cevap zemini */
+  color-scheme: light;
 
-  --red: #ff4b4b;
-  --red-dark: #ea2b2b;
-  --red-wash: #ffdfe0;
+  /* Marka */
+  --brand: #9b60be; /* kenarlık, anahat, çıplak işaret */
+  --brand-strong: #7b3ba0; /* beyaz metin taşıyan dolgular */
+  --brand-dark: #5f2c7d; /* buton gölgesi */
+  --brand-light: #bf9bd4;
+  --brand-wash: #f4ecf8; /* seçili şık zemini */
+  --brand-text: #5f2c7d; /* zemin üstünde okunur marka metni */
 
-  --blue: #1cb0f6;
-  --blue-dark: #1899d6;
-  --blue-wash: #ddf4ff;
+  /* Vurgu — gün serisi, kombo */
+  --accent: #ff6b4a;
+  --accent-dark: #e04e2e;
 
-  --gold: #ffc800;
-  --gold-dark: #e5a400;
-  --orange: #ff9600;
-  --purple: #ce82ff;
+  /* Doğru cevap — markanın ikincil moru (bkz. karanlık tema notu) */
+  --success: #7039d0;
+  --success-dark: #4d2593;
+  --success-wash: #ece2fb;
+  --success-text: #4d2593;
 
-  /* Nötrler */
-  --eel: #4b4b4b; /* ana metin */
-  --wolf: #777777; /* ikincil metin */
-  --hare: #afafaf; /* pasif */
-  --swan: #e5e5e5; /* kenarlık */
-  --polar: #f7f7f7; /* zemin */
-  --snow: #ffffff;
+  /* Yanlış cevap, can */
+  --danger: #ff4767;
+  --danger-dark: #c81339;
+  --danger-wash: #fdeef0;
+  --danger-text: #c81339;
+
+  /* XP, efsane */
+  --gold: #ffb43d;
+  --gold-dark: #cf8100;
+  --gold-wash: #fff4de;
+  --gold-text: #8a5a00;
+
+  /* Elmas, ikincil buton */
+  --sky: #35d0ff;
+  --sky-dark: #0089b8;
+  --sky-wash: #dff6ff;
+  --sky-text: #0089b8;
+
+  /* Ders haritası çeşitlemesi */
+  --lilac: #c78be0;
+  --lilac-dark: #9c5cc4;
+
+  /* Geniş renkli yüzeyler (ünite şeritleri). Üstlerinde beyaz metin var;
+     hepsi beyazla en az 4.5:1 kontrast verir. */
+  --deep-brand: #6e2f93;
+  --deep-ocean: #0b7fa8;
+  --deep-lilac: #8c3bb5;
+  --deep-amber: #976000;
+  --deep-coral: #c23a20;
+  --deep-rose: #c81339;
+
+  /* Nötrler — mor değil, nötr gri (bkz. yukarıdaki 2. kural) */
+  --ink: #272430; /* ana metin */
+  --ink-2: #5f5a6b; /* ikincil metin */
+  --muted: #a5a1b0; /* pasif */
+  --line: #e7e5ec; /* kenarlık */
+  --bg: #f6f5f8; /* zemin */
+  --surface: #ffffff;
+
+  /* Pencere başlık çubuğu */
+  --titlebar: #241f2e;
+  --titlebar-text: #ece9f2;
+
+  /* Temadan bağımsız sabitler — renkli dolgu üstündeki metin iki temada da
+     aynı kalmalı, yoksa karanlıkta mor butonun yazısı da koyulaşıyor. */
+  --on-color: #ffffff;
+  --on-gold: #241f2e;
+
+  /* Devre dışı buton. Eskiden --line/--muted idi ve koyu temada 2.5:1'e
+     düşüp okunmaz oluyordu; artık ikisinde de 3.5:1 üstünde. */
+  --disabled-bg: #e9e7ee;
+  --disabled-text: #7d7789;
 
   /* Tipografi */
   --font: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -52,10 +113,63 @@
   --r-xl: 24px;
   --r-pill: 999px;
 
-  --shadow-btn: 0 4px 0; /* renk sınıf içinde verilir */
-  --shadow-card: 0 2px 0 var(--swan);
-  --shadow-pop: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --shadow-btn: 0 4px 0;
+  --shadow-card: 0 2px 0 var(--line);
+  --shadow-pop: 0 8px 24px rgba(20, 18, 26, 0.16);
 
   --sidebar-w: 244px;
   --rail-w: 328px;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --brand: #ac69d3;
+  --brand-strong: #9c51c8; /* beyazla 4.75:1 */
+  --brand-dark: #63307f;
+  --brand-light: #cba6e4;
+  --brand-wash: #2b2139;
+  --brand-text: #cba6e4;
+
+  --success-wash: #2a1f42;
+  --success-text: #c0a1f7;
+
+  --danger-wash: #2b1b1b;
+  --danger-text: #ff9a94;
+
+  --sky-wash: #102a35;
+  --sky-text: #6fdcff;
+
+  --gold-wash: #33270f;
+  --gold-text: #ffc86b;
+
+  /* Ünite şeritleri karanlıkta bir tık açılır, yoksa zeminle birbirine girer */
+  --deep-brand: #8a45b0;
+  --deep-ocean: #10708f;
+  --deep-lilac: #a250c9;
+  --deep-amber: #986106;
+  --deep-coral: #cf4526;
+  --deep-rose: #d1284a;
+
+  /* Doğru cevap markanın ikincil moru. Yeşil de kehribar da bu palette
+     yabancı duruyordu. Tonu 262° — ana markanın 278°'sinden yeterince ayrışıp
+     hâlâ aynı aileden kalıyor. Seçili şıkla karışmıyor çünkü seçim durumu
+     cevap kontrol edilince zaten kayboluyor. */
+  --success: #a674fb;
+  --danger: #f85149;
+
+  --ink: #eceaf2;
+  --ink-2: #a9a3b8;
+  --muted: #6e6880;
+  --line: #332e3f;
+  --bg: #15131b;
+  --surface: #1e1b26;
+
+  --titlebar: #100e15;
+  --titlebar-text: #ece9f2;
+
+  --disabled-bg: #2f2a3a;
+  --disabled-text: #948da6;
+
+  --shadow-pop: 0 8px 24px rgba(0, 0, 0, 0.5);
 }

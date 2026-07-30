@@ -2,10 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ExerciseView, grade, correctAnswerText, type AnswerValue } from '../components/Exercises';
 import { Mascot } from '../components/Mascot';
-import { Close, Flame, Heart, Speaker } from '../components/Icons';
-import { useGame } from '../lib/store';
+import { Close, Crown, Flame, Heart, Speaker } from '../components/Icons';
+import { useGame, LEGENDARY_XP } from '../lib/store';
 import { sfx, speak } from '../lib/audio';
-import type { Exercise } from '../lib/types';
+import type { Exercise, LessonMode } from '../lib/types';
+
+/* Efsanede can yerine tura özel hata hakkı var. */
+export const LEGENDARY_MISTAKES = 3;
 
 export type LessonResult = {
   xp: number;
@@ -15,16 +18,18 @@ export type LessonResult = {
   failed: boolean;
   /* Turun en uzun doğru serisi — kombo görevi bunu ölçüyor. */
   bestCombo: number;
+  mode: LessonMode;
 };
 
 type Props = {
   title: string;
   exercises: Exercise[];
+  mode?: LessonMode;
   onQuit: () => void;
   onFinish: (r: LessonResult) => void;
 };
 
-export function LessonScreen({ title, exercises, onQuit, onFinish }: Props) {
+export function LessonScreen({ title, exercises, mode = 'normal', onQuit, onFinish }: Props) {
   const { profile, loseHeart, reviewWord } = useGame();
   const [i, setI] = useState(0);
   const [value, setValue] = useState<AnswerValue>(null);
@@ -32,6 +37,10 @@ export function LessonScreen({ title, exercises, onQuit, onFinish }: Props) {
   const [right, setRight] = useState(0);
   const [combo, setCombo] = useState(0);
   const [bestCombo, setBestCombo] = useState(0);
+  /* Efsanede can harcanmıyor; tura özel hata sayacı var. Can ekonomisi
+     derslere ait kalsın, efsane elmasla girilen ayrı bir bahis olsun. */
+  const [mistakes, setMistakes] = useState(0);
+  const legendary = mode === 'legendary';
   const continueRef = useRef<HTMLButtonElement>(null);
 
   const ex = exercises[i];
@@ -84,7 +93,8 @@ export function LessonScreen({ title, exercises, onQuit, onFinish }: Props) {
       sfx.wrong();
       setCombo(0);
       setVerdict('wrong');
-      await loseHeart();
+      if (legendary) setMistakes((m) => m + 1);
+      else await loseHeart();
     }
   }
 
@@ -93,23 +103,37 @@ export function LessonScreen({ title, exercises, onQuit, onFinish }: Props) {
     setValue(null);
     if (i + 1 >= total) {
       const accuracy = right / total;
-      const xp = Math.round(10 + accuracy * 10);
+      /* Efsanenin ödülü sabit; sonuç ekranı ile store'un aynı sayıyı
+         söylemesi için ikisi de bu sabitten okuyor. */
+      const xp = legendary ? LEGENDARY_XP : Math.round(10 + accuracy * 10);
       sfx.complete();
-      onFinish({ xp, accuracy, correct: right, total, failed: false, bestCombo });
+      onFinish({ xp, accuracy, correct: right, total, failed: false, bestCombo, mode });
     } else {
       setI((n) => n + 1);
     }
   }
 
-  // Canlar biterse ders başarısız biter.
+  // Normal derste canlar biterse ders başarısız biter.
   useEffect(() => {
+    if (legendary) return;
     if (profile.hearts <= 0 && verdict === 'wrong') {
       const t = setTimeout(() => {
-        onFinish({ xp: 0, accuracy: right / total, correct: right, total, failed: true, bestCombo });
+        onFinish({ xp: 0, accuracy: right / total, correct: right, total, failed: true, bestCombo, mode });
       }, 1400);
       return () => clearTimeout(t);
     }
   }, [profile.hearts, verdict]);
+
+  // Efsanede üç hata turu bitirir.
+  useEffect(() => {
+    if (!legendary) return;
+    if (mistakes >= LEGENDARY_MISTAKES && verdict === 'wrong') {
+      const t = setTimeout(() => {
+        onFinish({ xp: 0, accuracy: right / total, correct: right, total, failed: true, bestCombo, mode });
+      }, 1400);
+      return () => clearTimeout(t);
+    }
+  }, [mistakes, verdict]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -166,6 +190,8 @@ export function LessonScreen({ title, exercises, onQuit, onFinish }: Props) {
             style={{ height: '100%', background: 'var(--brand)', borderRadius: 'var(--r-pill)' }}
           />
         </div>
+        {/* Efsanede kalp yerine taç ve kalan hata hakkı: can harcanmadığı için
+            kalp göstermek yanlış bilgi olurdu. */}
         <div
           style={{
             display: 'flex',
@@ -173,21 +199,21 @@ export function LessonScreen({ title, exercises, onQuit, onFinish }: Props) {
             gap: 6,
             fontWeight: 900,
             flexShrink: 0,
-            color: 'var(--danger-text)',
-            background: 'var(--danger-wash)',
+            color: legendary ? 'var(--gold-text)' : 'var(--danger-text)',
+            background: legendary ? 'var(--gold-wash)' : 'var(--danger-wash)',
             padding: '6px 14px 6px 10px',
             borderRadius: 'var(--r-pill)',
           }}
         >
           <motion.span
-            key={profile.hearts}
+            key={legendary ? mistakes : profile.hearts}
             initial={{ scale: 1.6 }}
             animate={{ scale: 1 }}
             style={{ display: 'grid', placeItems: 'center' }}
           >
-            <Heart size={22} color="var(--danger)" />
+            {legendary ? <Crown size={22} color="var(--gold)" /> : <Heart size={22} color="var(--danger)" />}
           </motion.span>
-          {profile.hearts}
+          {legendary ? LEGENDARY_MISTAKES - mistakes : profile.hearts}
         </div>
       </header>
 

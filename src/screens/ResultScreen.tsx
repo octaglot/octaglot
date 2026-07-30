@@ -13,7 +13,7 @@ function Confetti() {
         delay: Math.random() * 0.5,
         dur: 1.6 + Math.random() * 1.2,
         rot: Math.random() * 720 - 360,
-        color: ['var(--green)', 'var(--blue)', 'var(--gold)', 'var(--purple)', 'var(--orange)'][i % 5],
+        color: ['var(--success)', 'var(--sky)', 'var(--gold)', 'var(--lilac)', 'var(--accent)'][i % 5],
         w: 8 + Math.random() * 8,
       })),
     [],
@@ -51,12 +51,12 @@ function Stat({ label, value, color }: { label: string; value: string; color: st
         minWidth: 150,
       }}
     >
-      <div style={{ color: 'var(--snow)', fontWeight: 800, fontSize: 'var(--t-tiny)', letterSpacing: 1, padding: '6px 0', textAlign: 'center' }}>
+      <div style={{ color: 'var(--on-color)', fontWeight: 800, fontSize: 'var(--t-tiny)', letterSpacing: 1, padding: '6px 0', textAlign: 'center' }}>
         {label}
       </div>
       <div
         style={{
-          background: 'var(--snow)',
+          background: 'var(--surface)',
           borderRadius: 'var(--r-md)',
           margin: 2,
           padding: '12px 0',
@@ -81,6 +81,8 @@ export function ResultScreen({
   onContinue: () => void;
   onRetry: () => void;
 }) {
+  const legendary = result.mode === 'legendary';
+
   useEffect(() => {
     if (!result.failed) sfx.levelUp();
     else sfx.heart();
@@ -91,9 +93,13 @@ export function ResultScreen({
       <div style={{ height: '100%', display: 'grid', placeItems: 'center', padding: 32 }}>
         <div style={{ textAlign: 'center', maxWidth: 420 }}>
           <Mascot mood="sad" size={160} />
-          <h1 style={{ fontSize: 'var(--t-display)', color: 'var(--red)', marginTop: 16 }}>Canların bitti</h1>
-          <p style={{ color: 'var(--wolf)', fontWeight: 700, marginBottom: 28 }}>
-            Canlar yarım saatte bir geri gelir. Dilersen dersi baştan dene.
+          <h1 style={{ fontSize: 'var(--t-display)', color: 'var(--danger)', marginTop: 16 }}>
+            {legendary ? 'Efsane başarısız' : 'Canların bitti'}
+          </h1>
+          <p style={{ color: 'var(--ink-2)', fontWeight: 700, marginBottom: 28 }}>
+            {legendary
+              ? 'Üç hata hakkın doldu. Elmas geri gelmiyor — bir daha denemek için yeniden gir.'
+              : 'Canlar yarım saatte bir geri gelir. Dilersen dersi baştan dene.'}
           </p>
           <div style={{ display: 'grid', gap: 12 }}>
             <button className="btn btn--full btn--lg" onClick={onRetry}>
@@ -121,16 +127,20 @@ export function ResultScreen({
       >
         <Mascot mood="cheer" size={170} />
         <h1 style={{ fontSize: 'var(--t-display)', color: 'var(--gold-dark)', marginTop: 12 }}>
-          {perfect ? 'Kusursuz ders!' : 'Ders tamamlandı!'}
+          {legendary ? 'Efsane geçildi!' : perfect ? 'Kusursuz ders!' : 'Ders tamamlandı!'}
         </h1>
-        <p style={{ color: 'var(--wolf)', fontWeight: 700, marginBottom: 28 }}>
-          {perfect ? 'Tek hata bile yok. Pako gururlu.' : 'Güzel gidiyorsun, devam et.'}
+        <p style={{ color: 'var(--ink-2)', fontWeight: 700, marginBottom: 28 }}>
+          {legendary
+            ? 'Bu ders artık efsane. Haritada altın halkasıyla duruyor.'
+            : perfect
+              ? 'Tek hata bile yok. Okta gururlu.'
+              : 'Güzel gidiyorsun, devam et.'}
         </p>
 
         <div style={{ display: 'flex', gap: 14, justifyContent: 'center', marginBottom: 32, flexWrap: 'wrap' }}>
           <Stat label="TOPLAM XP" value={`+${result.xp}`} color="var(--gold)" />
-          <Stat label="İSABET" value={`%${Math.round(result.accuracy * 100)}`} color="var(--green)" />
-          <Stat label="DOĞRU" value={`${result.correct}/${result.total}`} color="var(--blue)" />
+          <Stat label="İSABET" value={`%${Math.round(result.accuracy * 100)}`} color="var(--success-text)" />
+          <Stat label="DOĞRU" value={`${result.correct}/${result.total}`} color="var(--sky-text)" />
         </div>
 
         <button className="btn btn--lg btn--full" onClick={onContinue}>

@@ -17,6 +17,8 @@ import type { Lesson, Unit } from './types';
 const MAX_HEARTS = 5;
 const HEART_REFILL_MIN = 30; // dakikada bir can geri gelir
 const REFILL_COST = 50; // elmasla tam dolum
+const LEGENDARY_COST = 30; // efsaneye giriş
+const LEGENDARY_XP = 60; // efsane turu ödülü
 
 const dayKey = (d = new Date()) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -369,4 +371,4 @@ export const useGame = create<State>((set, get) => ({
   },
 }));
 
-export { MAX_HEARTS, REFILL_COST, dayKey };
+export { MAX_HEARTS, REFILL_COST, LEGENDARY_COST, LEGENDARY_XP, dayKey };
