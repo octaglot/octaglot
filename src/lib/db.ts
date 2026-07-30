@@ -105,6 +105,19 @@ export async function getLessonSentences(lessonId: number): Promise<Sentence[]> 
   return db.select<Sentence[]>('SELECT * FROM sentences WHERE lesson_id = $1 ORDER BY n, id', [lessonId]);
 }
 
+/* Efsane modu tek dersten değil ünitenin tamamından soru çeker. */
+export async function getUnitWords(unitId: number): Promise<Word[]> {
+  if (!isTauri) return mockContent.unitWords(unitId);
+  const db = await openContent();
+  return db.select<Word[]>('SELECT * FROM words WHERE unit_id = $1 ORDER BY id', [unitId]);
+}
+
+export async function getUnitSentences(unitId: number): Promise<Sentence[]> {
+  if (!isTauri) return mockContent.unitSentences(unitId);
+  const db = await openContent();
+  return db.select<Sentence[]>('SELECT * FROM sentences WHERE unit_id = $1 ORDER BY n, id', [unitId]);
+}
+
 /* Şıkların inandırıcı olması için çeldiriciler aynı üniteden seçilir. */
 export async function getDistractorWords(unitId: number, exclude: number[], limit = 12): Promise<Word[]> {
   if (!isTauri) return mockContent.distractors(unitId, exclude, limit);

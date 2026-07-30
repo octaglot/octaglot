@@ -47,3 +47,7 @@ export type Exercise =
   | { kind: 'flashcard'; word: Word };
 
 export type ExerciseKind = Exercise['kind'];
+
+/* Ders kipi. Efsane, bitmiş bir dersin zorlaştırılmış hâli: can yerine üç hata
+   hakkı, yalnızca üretim gerektiren alıştırmalar, ünite genelinden sorular. */
+export type LessonMode = 'normal' | 'legendary';

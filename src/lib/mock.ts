@@ -46,6 +46,8 @@ export const mockContent = {
       .slice(0, limit),
   byIds: (ids: number[]) => data.words.filter((w) => ids.includes(w.id)),
   byLessons: (lessonIds: number[]) => data.words.filter((w) => lessonIds.includes(w.lesson_id)),
+  unitWords: (unitId: number) => data.words.filter((w) => w.unit_id === unitId),
+  unitSentences: (unitId: number) => data.sentences.filter((s) => s.unit_id === unitId).sort((a, b) => a.n - b.n),
 };
 
 export const mockUser = memory;

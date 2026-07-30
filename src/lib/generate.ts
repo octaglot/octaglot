@@ -1,4 +1,12 @@
-import { getDistractorWords, getLessonSentences, getLessonWords, getWordsByIds } from './db';
+import {
+  getDistractorWords,
+  getLessonSentences,
+  getLessonWords,
+  getUnitSentences,
+  getUnitWords,
+  getWordsByIds,
+} from './db';
+import { LEGENDARY_KINDS } from './legendaryKinds';
 import { shuffle, pick } from './rand';
 import type { Exercise, Sentence, Word } from './types';
 
@@ -137,4 +145,47 @@ export async function buildReview(wordIds: number[], count = 12): Promise<Lesson
   if (words.length >= 5) ex.push({ kind: 'match', pairs: shuffle(words).slice(0, 5) });
 
   return { exercises: shuffle(ex).slice(0, count), words };
+}
+
+/**
+ * Efsane turu: ünitenin tamamından, yalnızca üretim gerektiren alıştırmalar.
+ * `buildLesson`'dan ayrı duruyor çünkü havuzu ders değil ünite, sırası da
+ * "önce tanıt sonra sına" değil — efsanede tanıtma aşaması yok.
+ */
+export async function buildLegendary(unitId: number, count = 16): Promise<LessonPlan> {
+  const [words, sentences] = await Promise.all([getUnitWords(unitId), getUnitSentences(unitId)]);
+  if (!words.length || !sentences.length) return { exercises: [], words };
+
+  const tokenPool = [...new Set(sentences.flatMap((s) => splitWords(s.en)))];
+  const usable = sentences.filter((s) => s.n >= 2 && s.n <= 9);
+  const pool = usable.length >= 8 ? usable : sentences;
+
+  const ex: Exercise[] = [];
+
+  for (const s of shuffle(pool).slice(0, 6)) {
+    ex.push({ kind: 'typeTr', sentence: s });
+  }
+
+  for (const s of shuffle(pool).slice(0, 4)) {
+    ex.push({ kind: 'listen', sentence: s, bank: bankFor(s, tokenPool), answer: splitWords(s.en) });
+  }
+
+  for (const s of shuffle(pool.filter((x) => x.n >= 3)).slice(0, 3)) {
+    ex.push({ kind: 'order', sentence: s });
+  }
+
+  const forms = new Set(words.map((w) => w.en));
+  for (const s of shuffle(pool)) {
+    const tokens = splitWords(s.en);
+    const idx = tokens.findIndex((t) => forms.has(normalize(t)));
+    if (idx === -1) continue;
+    const missing = tokens[idx];
+    const wrong = shuffle(tokenPool.filter((t) => normalize(t) !== normalize(missing))).slice(0, 3);
+    ex.push({ kind: 'blank', sentence: s, missing, options: shuffle([missing, ...wrong]) });
+    if (ex.filter((e) => e.kind === 'blank').length >= 3) break;
+  }
+
+  // Güvenlik ağı: izinli olmayan bir tip sızarsa burada elenir.
+  const allowed = new Set<string>(LEGENDARY_KINDS);
+  return { exercises: shuffle(ex.filter((e) => allowed.has(e.kind))).slice(0, count), words };
 }
