@@ -1,4 +1,4 @@
-# Cıvıl
+# Octaglot
 
 Türkçe anlatımlı, oyunlaştırılmış İngilizce öğrenme uygulaması. macOS masaüstü
 uygulaması olarak çalışır, internet bağlantısı gerektirmez.
@@ -7,14 +7,14 @@ uygulaması olarak çalışır, internet bağlantısı gerektirmez.
 
 ## Kurulum
 
-Uygulama `Cıvıl.app` olarak derlenir:
+Uygulama `Octaglot.app` olarak derlenir:
 
 ```sh
 npm install
 npm run tauri build
 ```
 
-Sonuç: `src-tauri/target/release/bundle/macos/Cıvıl.app`
+Sonuç: `src-tauri/target/release/bundle/macos/Octaglot.app`
 
 Geliştirirken:
 
@@ -72,14 +72,18 @@ olmaktan çıkarılıyor. Kalan tekil hatalar `OVERRIDES` ile elle düzeltiliyor
 src/
   lib/
     db.ts          içerik ve kullanıcı veritabanı erişimi
-    store.ts       can / XP / seri / elmas / aralıklı tekrar
+    store.ts       can / XP / seri / elmas / aralıklı tekrar / görev / efsane
     generate.ts    ders verisinden alıştırma üretimi
+    storm.ts       fırtına havuzu, kart çekme, puan (saf)
+    quests.ts      tohumlu günlük görev üretimi (saf)
+    rand.ts        shuffle / pick / tohumlu üreteç
     audio.ts       Web Audio ses efektleri + telaffuz
   components/
     Exercises.tsx  8 alıştırma tipi ve puanlama
-    Mascot.tsx     Pako (animasyonlu SVG)
+    QuestCard.tsx  günlük görev kartı
+    Mascot.tsx     Okta (animasyonlu SVG ahtapot)
     Icons.tsx      düz SVG ikon seti
-  screens/         harita, ders, sonuç
+  screens/         harita, ders, fırtına, sonuç
 src-tauri/
   src/lib.rs       içerik veritabanını yazılabilir dizine kopyalar
   resources/       content.db (uygulamayla paketlenir)
@@ -98,11 +102,78 @@ kullanılmıyor.
 Kelime kartı · Çoktan seçmeli · Eşleştirme · Boşluk doldurma · Kelime bankasıyla
 çeviri · Dinle-yaz · Cümle sıralama · Yazarak çeviri
 
+Ders dışında üç mod var, aşağıda anlatılıyor.
+
 Yazarak çeviride kelime düzeyinde tek sapmaya izin veriliyor — Tatoeba'da her
 cümlenin tek bir referans çevirisi olduğu için katı eşleşme haksız olurdu.
 
+## Ders dışı modlar
+
+Uygulama çevrimdışı ve tek kullanıcılı; Duolingo'nun lig/arkadaş yarışı buraya
+taşınamıyor. Sahte rakip uydurmak yerine kişi kendi geçmişiyle ve günlük
+görevlerle yarışıyor.
+
+**Eşleştirme Fırtınası.** 60 saniyede kelime çifti eşleştirme. Can harcamaz,
+yanlış cevap süreden 2 saniye götürür, kombo beşte doyar. Havuz bitmiş
+derslerin kelimelerinden kurulur; vadesi gelmiş tekrar kelimeleri öne alınır ve
+verilen her cevap aralıklı tekrara yazılır — mod tekrarın kopyası değil,
+hızlandırıcısı. 20 kelime öğrenilmeden kilitli durur, çünkü küçük havuzda aynı
+çift üst üste gelir. Günde ilk 3 tur XP verir (puanın 25'te biri, en çok 40):
+sınırsız XP veren 60 saniyelik bir mod 50 XP'lik günlük hedefi anlamsızlaştırır.
+
+**Günlük görevler.** Günde üç görev, günün tarihinden türeyen tohumla seçilir —
+uygulama gün içinde kapanıp açılınca aynı üçlü çıkar. Görev başına 10 elmas,
+üçü birden bitince 15 bonus; ödül elle alınır. Ölçülen şeyler mevcut olaylardan
+geliyor: XP, biten ders, bir derste en uzun doğru serisi, fırtına puanı, tekrar
+edilen kelime.
+
+**Efsane seviye.** Bitmiş bir derse tıklayınca çıkan seçenek. 30 elmasla
+girilir, can harcamaz; yerine üç hata hakkı vardır ve dolunca elmas geri
+gelmez. Sorular tek dersten değil ünitenin tamamından gelir ve yalnızca üretim
+gerektiren tipler kullanılır (yazarak çeviri, dinle-yaz, boşluk doldurma, cümle
+sıralama) — kelime bankası ve çoktan seçmeli tanımayla çözülebildiği için
+dışarıda. Geçilen ders haritada taç ve altın halkayla durur, ödülü 60 XP.
+
+## Test
+
+```sh
+npm test
+```
+
+Vitest, yalnız saf modülleri kapsıyor (`storm.ts`, `quests.ts`,
+`legendaryKinds.ts`). Ekranlar ve store test edilmiyor: `db.ts` Tauri
+eklentisini çekiyor, Node ortamında yüklenmiyor. Oyun mantığı bu yüzden
+veritabanına ve React'e dokunmayan modüllere ayrıldı.
+
 ## Tasarım
 
-Duolingo'nun görsel dili hedeflendi: doygun yeşil paleti, 3B basma butonlar,
-yuvarlak ağır tipografi (Nunito), zigzag ders patikası, can/seri/XP döngüsü.
-Marka varlıkları taklit edilmedi — logo ve maskot (Pako) bu proje için çizildi.
+Duolingo'dan yalnızca **mekanik** alındı: 3B basma butonlar, yuvarlak ağır
+tipografi (Nunito), zigzag ders patikası, can/seri/XP döngüsü. **Palet
+bilinçli olarak alınmadı** — Duolingo asit yeşili (#58cc02) ve saf gri nötrler
+üzerine kuruludur; Octaglot mor (#8a63d2, GitHub Desktop moru) üzerine kurulu
+ve nötrleri de mora çalar.
+
+Bütün renkler `src/design/tokens.css` içinde **rol adlarıyla** durur
+(`--brand`, `--success`, `--danger`…), bileşenlerde hex yazılmaz. Üstünde beyaz
+metin duran geniş yüzeylerde `--brand` değil `--brand-strong` / `--deep-*`
+tonları kullanılır: `--brand` beyazla 4.38:1 verip WCAG AA eşiğinin altında
+kalıyor.
+
+### Marka
+
+**İşaret** kenetlenmiş iki halkadır — iki dil birbirine kilitli. Dış yarıçap 60,
+iç yarıçap 30, iki merkez 60 birim arayla; her halkanın diğerine denk gelen
+çeyreği boş bırakıldığı için üst üste binmeden kenetlenirler. Kalınlık her yerde
+eşit olduğundan 16 piksele indiğinde de dolmuyor. Kaynak dosyalar
+`public/brand/` altında.
+
+**Uygulama ikonu** Apple'ın macOS ızgarasına uyar: 1024'lük tuvalde çizim
+824×824'lük alana oturur, kalan kenar boşluğu saydamdır — Dock'ta komşularıyla
+aynı optik boyutu ancak böyle tutturur. Köşeler yuvarlatılmış kare değil,
+süperelips (squircle) ile çizilir.
+
+**Maskot** Okta, mor bir ahtapot; sekiz kolu sekiz alıştırma tipine denk gelir.
+Çizim [Twemoji](https://github.com/jdecked/twemoji)'nin ahtapot emojisinden
+(U+1F419) uyarlandı, **CC-BY 4.0** ile lisanslı. Atıf uygulamanın profil
+ekranında görünür. Yapılan değişiklikler: arka ve orta kollar tek yoldan
+ayrılıp bağımsız canlandırıldı, ruh haline göre göz ve ağız eklendi.
