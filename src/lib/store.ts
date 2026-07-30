@@ -8,6 +8,8 @@ import {
   loadQuests,
   saveQuestProgress,
   saveQuestClaim,
+  loadLegendary,
+  saveLegendary,
 } from './db';
 import { stormXp } from './storm';
 import { isComplete, nextProgress, QUEST_BONUS, QUEST_REWARD, type Quest, type QuestKind } from './quests';
@@ -59,12 +61,18 @@ type State = {
   learnedWordCount: number;
   /* Bugünün üç görevi. */
   quests: Quest[];
+  /* Efsane seviyesi geçilmiş ders kimlikleri. */
+  legendary: Set<number>;
 
   init: () => Promise<void>;
   addXp: (n: number) => Promise<void>;
   loseHeart: () => Promise<void>;
   refillHearts: (withGems: boolean) => Promise<boolean>;
   completeLesson: (lessonId: number, accuracy: number, xp: number) => Promise<void>;
+  /* Girişte elmas düşer; tur başarısız bitse de geri gelmez — bahsin anlamı bu.
+     Elmas yetmezse false döner, çağıran uyarır. */
+  startLegendary: () => Promise<boolean>;
+  completeLegendary: (lessonId: number) => Promise<void>;
   reviewWord: (wordId: number, correct: boolean) => Promise<void>;
   recordStorm: (score: number) => Promise<number>;
   bumpQuest: (kind: QuestKind, n: number) => Promise<void>;
@@ -97,6 +105,7 @@ export const useGame = create<State>((set, get) => ({
   stormRunsToday: 0,
   learnedWordCount: 0,
   quests: [],
+  legendary: new Set(),
   profile: blank,
 
   async init() {
@@ -154,7 +163,7 @@ export const useGame = create<State>((set, get) => ({
        toplanıyor — içerik veritabanına ikinci bir sorgu atmaya gerek yok. */
     const learnedWordCount = lessons.filter((l) => done.has(l.id)).reduce((n, l) => n + l.word_count, 0);
 
-    const quests = await loadQuests(today);
+    const [quests, legendaryIds] = await Promise.all([loadQuests(today), loadLegendary()]);
 
     set({
       ready: true,
@@ -167,6 +176,7 @@ export const useGame = create<State>((set, get) => ({
       stormRunsToday,
       learnedWordCount,
       quests,
+      legendary: new Set(legendaryIds),
     });
     await get().refreshDue();
   },
@@ -256,6 +266,26 @@ export const useGame = create<State>((set, get) => ({
     await get().addXp(xp);
     await get().refreshDue();
     await get().bumpQuest('lessons', 1);
+  },
+
+  async startLegendary() {
+    const p = get().profile;
+    if (p.gems < LEGENDARY_COST) return false;
+    const gems = p.gems - LEGENDARY_COST;
+    if (isTauri) {
+      const db = await openUser();
+      await db.execute('UPDATE profile SET gems = $1 WHERE id = 1', [gems]);
+    }
+    set({ profile: { ...p, gems } });
+    return true;
+  },
+
+  async completeLegendary(lessonId) {
+    await saveLegendary(lessonId);
+    const legendary = new Set(get().legendary);
+    legendary.add(lessonId);
+    set({ legendary });
+    await get().addXp(LEGENDARY_XP);
   },
 
   /* Görev ilerlemesinin tek kapısı. Her olay kaynağı (XP, ders, tekrar,

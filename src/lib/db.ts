@@ -75,6 +75,12 @@ export async function openUser(): Promise<Database> {
       claimed_at TEXT,
       PRIMARY KEY (day, idx)
     );
+
+    -- Efsane seviyesi geçilmiş dersler.
+    CREATE TABLE IF NOT EXISTS legendary (
+      lesson_id INTEGER PRIMARY KEY,
+      done_at TEXT NOT NULL
+    );
   `);
   return userDb;
 }
@@ -207,6 +213,24 @@ export async function saveQuestClaim(day: string, idx: number, at: string): Prom
   if (!isTauri) return;
   const db = await openUser();
   await db.execute('UPDATE quests SET claimed_at = $1 WHERE day = $2 AND idx = $3', [at, day, idx]);
+}
+
+/* ---------------- efsane ---------------- */
+
+export async function loadLegendary(): Promise<number[]> {
+  if (!isTauri) return [];
+  const db = await openUser();
+  const rows = await db.select<{ lesson_id: number }[]>('SELECT lesson_id FROM legendary');
+  return rows.map((r) => r.lesson_id);
+}
+
+export async function saveLegendary(lessonId: number): Promise<void> {
+  if (!isTauri) return;
+  const db = await openUser();
+  await db.execute('INSERT OR IGNORE INTO legendary (lesson_id, done_at) VALUES ($1, $2)', [
+    lessonId,
+    new Date().toISOString(),
+  ]);
 }
 
 export async function getUnitWordCount(unitId: number): Promise<number> {

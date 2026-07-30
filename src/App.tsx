@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { useGame, MAX_HEARTS, REFILL_COST } from './lib/store';
-import { buildLesson, buildReview } from './lib/generate';
+import { useGame, MAX_HEARTS, REFILL_COST, LEGENDARY_COST } from './lib/store';
+import { buildLesson, buildReview, buildLegendary } from './lib/generate';
 import { Logo, Mark, Wordmark } from './components/Logo';
 import { Mascot } from './components/Mascot';
 import { QuestCard } from './components/QuestCard';
@@ -11,14 +11,14 @@ import { StormScreen } from './screens/StormScreen';
 import { LessonScreen, type LessonResult } from './screens/LessonScreen';
 import { ResultScreen } from './screens/ResultScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
-import type { Exercise, Lesson, Unit, Word } from './lib/types';
+import type { Exercise, Lesson, LessonMode, Unit, Word } from './lib/types';
 
 type View =
   | { name: 'map' }
   | { name: 'profile' }
   | { name: 'settings' }
   | { name: 'storm' }
-  | { name: 'lesson'; title: string; exercises: Exercise[]; words: Word[]; lesson: Lesson | null }
+  | { name: 'lesson'; title: string; exercises: Exercise[]; words: Word[]; lesson: Lesson | null; mode: LessonMode }
   | { name: 'result'; result: LessonResult; lesson: Lesson | null; unit: Unit | null };
 
 export default function App() {
@@ -52,6 +52,38 @@ export default function App() {
       exercises: plan.exercises,
       words: plan.words,
       lesson,
+      mode: 'normal',
+    });
+  }
+
+  /* Efsane turu. Elmas, içeriğin hazır olduğu doğrulandıktan SONRA düşüyor —
+     ünitede soru kurulamazsa kullanıcı boşuna ödemesin. */
+  async function startLegendaryLesson(lesson: Lesson, unit: Unit) {
+    if (profile.gems < LEGENDARY_COST) {
+      setNotice(`Efsane için ${LEGENDARY_COST} elmas gerekiyor.`);
+      return;
+    }
+    setLoading(true);
+    const plan = await buildLegendary(unit.id);
+    if (!plan.exercises.length) {
+      setLoading(false);
+      setNotice('Bu ünite için efsane turu kurulamadı.');
+      return;
+    }
+    const paid = await game.startLegendary();
+    setLoading(false);
+    if (!paid) {
+      setNotice(`Efsane için ${LEGENDARY_COST} elmas gerekiyor.`);
+      return;
+    }
+    setLastUnit(unit);
+    setView({
+      name: 'lesson',
+      title: `${unit.title} · Efsane`,
+      exercises: plan.exercises,
+      words: plan.words,
+      lesson,
+      mode: 'legendary',
     });
   }
 
@@ -64,12 +96,24 @@ export default function App() {
       setNotice('Tekrar edilecek kelime yok. Birkaç ders yaptıktan sonra burası dolar.');
       return;
     }
-    setView({ name: 'lesson', title: 'Tekrar dersi', exercises: plan.exercises, words: plan.words, lesson: null });
+    setView({
+      name: 'lesson',
+      title: 'Tekrar dersi',
+      exercises: plan.exercises,
+      words: plan.words,
+      lesson: null,
+      mode: 'normal',
+    });
   }
 
   async function finish(result: LessonResult, lesson: Lesson | null) {
-    if (!result.failed && lesson) await completeLesson(lesson.id, result.accuracy, result.xp);
-    else if (!result.failed) await game.addXp(result.xp);
+    if (result.mode === 'legendary') {
+      if (!result.failed && lesson) await game.completeLegendary(lesson.id);
+    } else if (!result.failed && lesson) {
+      await completeLesson(lesson.id, result.accuracy, result.xp);
+    } else if (!result.failed) {
+      await game.addXp(result.xp);
+    }
     // Başarısız derste de en uzun seri sayılır: görev "doğru" ölçüyor, "bitirme" değil.
     await game.bumpQuest('combo', result.bestCombo);
     setView({ name: 'result', result, lesson, unit: lastUnit });
@@ -121,6 +165,7 @@ export default function App() {
       <LessonScreen
         title={view.title}
         exercises={view.exercises}
+        mode={view.mode}
         onQuit={() => setView({ name: 'map' })}
         onFinish={(r) => finish(r, view.lesson)}
       />
@@ -137,8 +182,10 @@ export default function App() {
         result={view.result}
         onContinue={() => setView({ name: 'map' })}
         onRetry={() => {
-          if (view.lesson && view.unit) void startLesson(view.lesson, view.unit);
-          else setView({ name: 'map' });
+          if (view.lesson && view.unit) {
+            if (view.result.mode === 'legendary') void startLegendaryLesson(view.lesson, view.unit);
+            else void startLesson(view.lesson, view.unit);
+          } else setView({ name: 'map' });
         }}
       />
     );
@@ -214,7 +261,7 @@ export default function App() {
           </div>
         )}
         {view.name === 'map' ? (
-          <MapScreen onStart={startLesson} />
+          <MapScreen onStart={startLesson} onLegendary={startLegendaryLesson} />
         ) : view.name === 'settings' ? (
           <SettingsScreen />
         ) : (
