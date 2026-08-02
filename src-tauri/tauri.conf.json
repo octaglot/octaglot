@@ -1,9 +1,9 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Cıvıl",
-  "mainBinaryName": "civil",
+  "productName": "Octaglot",
+  "mainBinaryName": "octaglot",
   "version": "1.0.0",
-  "identifier": "com.civil.app",
+  "identifier": "com.octaglot.app",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -13,7 +13,7 @@
   "app": {
     "windows": [
       {
-        "title": "Cıvıl",
+        "title": "Octaglot",
         "width": 1180,
         "height": 820,
         "minWidth": 940,
@@ -22,7 +22,7 @@
         "center": true,
         "titleBarStyle": "Overlay",
         "hiddenTitle": true,
-        "backgroundColor": "#FFFFFF"
+        "backgroundColor": "#15131b"
       }
     ],
     "security": {
@@ -31,11 +31,16 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["app", "dmg"],
+    "targets": [
+      "app",
+      "dmg"
+    ],
     "category": "Education",
-    "shortDescription": "Oyunlaştırılmış İngilizce öğrenme uygulaması",
-    "longDescription": "Cıvıl — Türkçe anlatımlı, A1'den B1'e kadar oyunlaştırılmış İngilizce kursu.",
-    "resources": ["resources/content.db"],
+    "shortDescription": "Gamified English learning app",
+    "longDescription": "Octaglot - a gamified English course from A1 to B1, explained in Turkish.",
+    "resources": [
+      "resources/content.db"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

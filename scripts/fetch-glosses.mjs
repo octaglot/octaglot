@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-// Aday kelimeler için Wiktionary (kaikki.org) üzerinden Türkçe karşılık çeker.
+// Fetches Turkish glosses for the candidate words from Wiktionary (kaikki.org).
 //
-// İki katman:
-//   data/kaikki-raw.json → indirilen ham çeviri listeleri (kalıcı önbellek)
-//   data/glosses.json    → bunlardan türetilen nihai karşılıklar
+// Two layers:
+//   data/kaikki-raw.json -> the raw translation lists as downloaded (a durable cache)
+//   data/glosses.json    -> the final glosses derived from them
 //
-// Seçim mantığını değiştirdiğinde yeniden indirmen gerekmez; sadece
-// `node scripts/fetch-glosses.mjs --derive` çalıştır.
+// You do not need to download again when you change the selection logic; just
+// run `node scripts/fetch-glosses.mjs --derive`.
 
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -30,10 +30,10 @@ const words = JSON.parse(readFileSync(CANDIDATES, 'utf8'));
 const raw = existsSync(RAW_CACHE) ? JSON.parse(readFileSync(RAW_CACHE, 'utf8')) : {};
 
 /* ------------------------------------------------------------------ */
-/* İndirme                                                             */
+/* Download                                                            */
 /* ------------------------------------------------------------------ */
 
-// Bir kelimenin sayfasından sözcük türü başına Türkçe çevirileri çıkarır.
+// Extracts the Turkish translations per part of speech from a word's page.
 function extractEntries(lines) {
   const entries = [];
   for (const line of lines) {
@@ -58,7 +58,7 @@ async function fetchWord(w) {
   const url = `https://kaikki.org/dictionary/English/meaning/${w[0]}/${w.slice(0, 2)}/${encodeURIComponent(w)}.jsonl`;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      const res = await fetch(url, { headers: { 'user-agent': 'civil-lang-app/1.0' } });
+      const res = await fetch(url, { headers: { 'user-agent': 'octaglot-lang-app/1.0' } });
       if (res.status === 404) return [];
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const text = await res.text();
@@ -98,10 +98,10 @@ if (!DERIVE_ONLY) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Türetme                                                             */
+/* Derivation                                                          */
 /* ------------------------------------------------------------------ */
 
-// Bir Türkçe karşılığı temizler; kullanışsızsa null döner.
+// Cleans a Turkish gloss; returns null when it is not usable.
 function cleanWord(w) {
   if (!w) return null;
   let s = w
@@ -118,11 +118,11 @@ function cleanWord(w) {
   return s;
 }
 
-// Hangi sözcük türü asıl anlam? Wiktionary sayfa sırası bunun için şaşırtıcı
-// derecede güvenilir bir sinyal: sayfa "Etymology 1"den başlar ve en yaygın
-// sözcük türü önce gelir. Denenen alternatifler daha kötüydü —
-// "en çok çevirisi olan" kuralı water→sulamak, run→koşu, because→öyle işte
-// veriyordu; "isim önce" kuralı ise go→go (Go oyunu) veriyordu.
+// Which part of speech carries the main sense? Wiktionary's page order is a
+// surprisingly reliable signal here: the page starts at "Etymology 1" and the
+// most common part of speech comes first. The alternatives that were tried came
+// out worse - "the one with the most translations" gave water->sulamak,
+// run->koşu, because->öyle işte; "nouns first" gave go->go (the board game).
 function deriveGloss(entries, english) {
   if (!entries || !entries.length) return null;
 
@@ -134,7 +134,7 @@ function deriveGloss(entries, english) {
         const c = cleanWord(w);
         if (!c) continue;
         const k = c.toLocaleLowerCase('tr');
-        // Çeviri İngilizce kelimenin aynısıysa (ödünç kelime sayfası) atla
+        // Skip when the translation equals the English word (a loanword page)
         if (k === english) continue;
         if (seen.has(k)) continue;
         seen.add(k);

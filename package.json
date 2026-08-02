@@ -34,5 +34,5 @@
     "vite": "^7.0.4",
     "vitest": "^4.1.10"
   },
-  "description": "Octaglot — oyunlaştırılmış İngilizce öğrenme uygulaması"
+  "description": "Octaglot - a gamified English learning app"
 }

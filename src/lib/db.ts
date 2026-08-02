@@ -7,9 +7,9 @@ import type { Lesson, Sentence, Unit, Word } from './types';
 let contentDb: Database | null = null;
 let userDb: Database | null = null;
 
-/* İçerik veritabanı uygulamayla paketlenir ve Rust tarafı onu yazılabilir
-   dizine kopyalar; kullanıcı veritabanı ilk açılışta orada oluşturulur.
-   İkisini ayrı tutmanın sebebi: içerik güncellenince ilerleme silinmesin. */
+/* The content database ships with the app and the Rust side copies it into a
+   writable directory; the user database is created there on first launch.
+   They are kept apart so that updating the content does not wipe progress. */
 
 export async function openContent(): Promise<Database> {
   if (contentDb) return contentDb;
@@ -49,7 +49,7 @@ export async function openUser(): Promise<Database> {
     );
     CREATE INDEX IF NOT EXISTS idx_xp_day ON xp_log(day);
 
-    -- Aralıklı tekrar: her kelimenin bir sonraki gösterim tarihi.
+    -- Spaced repetition: the next due date for every word.
     CREATE TABLE IF NOT EXISTS srs (
       word_id INTEGER PRIMARY KEY,
       strength INTEGER NOT NULL DEFAULT 0,
@@ -58,14 +58,14 @@ export async function openUser(): Promise<Database> {
     );
     CREATE INDEX IF NOT EXISTS idx_srs_due ON srs(due);
 
-    -- Sayısal kayıtlar (fırtına rekoru, günlük tur sayısı). Profil şeması
-    -- sabit kalsın diye ayrı tablo: profile'a kolon eklemek göç gerektirirdi.
+    -- Numeric records (storm high score, rounds today). A separate table keeps
+    -- the profile schema fixed: adding a column to profile would need a migration.
     CREATE TABLE IF NOT EXISTS stats (
       key TEXT PRIMARY KEY,
       value INTEGER NOT NULL DEFAULT 0
     );
 
-    -- Günlük görevler. Geçmiş günler silinmiyor: ileride takvim/rozet için veri.
+    -- Daily quests. Past days are kept as data for a future calendar or badges.
     CREATE TABLE IF NOT EXISTS quests (
       day TEXT NOT NULL,
       idx INTEGER NOT NULL,
@@ -76,7 +76,7 @@ export async function openUser(): Promise<Database> {
       PRIMARY KEY (day, idx)
     );
 
-    -- Efsane seviyesi geçilmiş dersler.
+    -- Lessons cleared at legendary level.
     CREATE TABLE IF NOT EXISTS legendary (
       lesson_id INTEGER PRIMARY KEY,
       done_at TEXT NOT NULL
@@ -85,7 +85,7 @@ export async function openUser(): Promise<Database> {
   return userDb;
 }
 
-/* ---------------- içerik sorguları ---------------- */
+/* ---------------- content queries ---------------- */
 
 export async function getUnits(): Promise<Unit[]> {
   if (!isTauri) return mockContent.units();
@@ -111,7 +111,7 @@ export async function getLessonSentences(lessonId: number): Promise<Sentence[]> 
   return db.select<Sentence[]>('SELECT * FROM sentences WHERE lesson_id = $1 ORDER BY n, id', [lessonId]);
 }
 
-/* Efsane modu tek dersten değil ünitenin tamamından soru çeker. */
+/* Legendary mode draws its questions from the whole unit, not one lesson. */
 export async function getUnitWords(unitId: number): Promise<Word[]> {
   if (!isTauri) return mockContent.unitWords(unitId);
   const db = await openContent();
@@ -124,7 +124,7 @@ export async function getUnitSentences(unitId: number): Promise<Sentence[]> {
   return db.select<Sentence[]>('SELECT * FROM sentences WHERE unit_id = $1 ORDER BY n, id', [unitId]);
 }
 
-/* Şıkların inandırıcı olması için çeldiriciler aynı üniteden seçilir. */
+/* Distractors come from the same unit so the options stay plausible. */
 export async function getDistractorWords(unitId: number, exclude: number[], limit = 12): Promise<Word[]> {
   if (!isTauri) return mockContent.distractors(unitId, exclude, limit);
   const db = await openContent();
@@ -145,7 +145,7 @@ export async function getWordsByIds(ids: number[]): Promise<Word[]> {
   return db.select<Word[]>(`SELECT * FROM words WHERE id IN (${holes})`, ids);
 }
 
-/* ---------------- kullanıcı sayaçları ---------------- */
+/* ---------------- user counters ---------------- */
 
 export async function getStat(key: string): Promise<number> {
   if (!isTauri) return 0;
@@ -164,7 +164,7 @@ export async function setStat(key: string, value: number): Promise<void> {
   );
 }
 
-/* Fırtına havuzu: bitmiş derslerin bütün kelimeleri. */
+/* Storm pool: every word from the lessons already completed. */
 export async function getWordsByLessons(lessonIds: number[]): Promise<Word[]> {
   if (!lessonIds.length) return [];
   if (!isTauri) return mockContent.byLessons(lessonIds);
@@ -173,10 +173,11 @@ export async function getWordsByLessons(lessonIds: number[]): Promise<Word[]> {
   return db.select<Word[]>(`SELECT * FROM words WHERE lesson_id IN (${holes})`, lessonIds);
 }
 
-/* ---------------- günlük görevler ---------------- */
+/* ---------------- daily quests ---------------- */
 
-/* Günün görevleri ilk çağrıda yazılır, sonra tablodan okunur. Üretim tohumlu
-   olduğu için yazma anı önemli değil — aynı gün hep aynı üçlü çıkar. */
+/* The day's quests are written on the first call and read from the table after
+   that. Generation is seeded, so the moment of writing does not matter - the
+   same day always yields the same three. */
 export async function loadQuests(day: string): Promise<Quest[]> {
   const planned = dailyQuests(day);
   if (!isTauri) return planned.map((q) => ({ ...q, progress: 0, claimed: false }));

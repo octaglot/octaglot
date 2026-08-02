@@ -3,30 +3,30 @@ use std::path::PathBuf;
 use tauri::path::BaseDirectory;
 use tauri::Manager;
 
-/// Paketlenmiş `content.db` uygulama paketinin içinde salt-okunurdur; SQLite'ı
-/// oraya bağlamak yazma denemesinde patlar. İlk açılışta (ve içerik
-/// güncellendiğinde) yazılabilir dizine kopyalıyoruz.
+/// The bundled `content.db` is read-only inside the app bundle; pointing SQLite
+/// at it blows up on the first write attempt. On first launch (and whenever the
+/// content is updated) we copy it into a writable directory.
 fn ensure_content_db(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     let src = app
         .path()
         .resolve("resources/content.db", BaseDirectory::Resource)
-        .map_err(|e| format!("kaynak bulunamadı: {e}"))?;
+        .map_err(|e| format!("resource not found: {e}"))?;
 
     let dir = app
         .path()
         .app_config_dir()
-        .map_err(|e| format!("yapılandırma dizini yok: {e}"))?;
-    fs::create_dir_all(&dir).map_err(|e| format!("dizin oluşturulamadı: {e}"))?;
+        .map_err(|e| format!("no config directory: {e}"))?;
+    fs::create_dir_all(&dir).map_err(|e| format!("could not create directory: {e}"))?;
     let dst = dir.join("content.db");
 
-    // Boyut farklıysa içerik güncellenmiştir; üzerine yaz.
+    // A different size means the content was updated; overwrite it.
     let needs_copy = match (fs::metadata(&src), fs::metadata(&dst)) {
         (Ok(s), Ok(d)) => s.len() != d.len(),
         (Ok(_), Err(_)) => true,
-        (Err(e), _) => return Err(format!("kaynak okunamadı: {e}")),
+        (Err(e), _) => return Err(format!("could not read resource: {e}")),
     };
     if needs_copy {
-        fs::copy(&src, &dst).map_err(|e| format!("kopyalanamadı: {e}"))?;
+        fs::copy(&src, &dst).map_err(|e| format!("copy failed: {e}"))?;
     }
     Ok(dst)
 }
@@ -42,7 +42,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_sql::Builder::default().build())
         .setup(|app| {
-            // Ön yüz sormadan önce hazır olsun; hata olursa komut yine bildirir.
+            // Ready before the frontend asks; on failure the command still reports it.
             let _ = ensure_content_db(app.handle());
             Ok(())
         })

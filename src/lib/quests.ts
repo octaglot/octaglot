@@ -1,8 +1,8 @@
 import { mulberry32 } from './rand';
 
-/* Günlük görevler. Rastgelelik çalışma anında değil günün anahtarından türeyen
-   tohumdan geliyor: uygulama gün içinde kapanıp açılınca aynı üç görev çıksın,
-   kullanıcı elindeki görevi kaybetmesin. */
+/* Daily quests. The randomness comes from a seed derived from the day's key
+   rather than from the clock: closing and reopening the app during the day
+   yields the same three quests, so nobody loses the quest they were on. */
 
 export type QuestKind = 'xp' | 'lessons' | 'combo' | 'storm' | 'review';
 
@@ -15,8 +15,8 @@ export type Quest = {
 };
 
 export const QUEST_COUNT = 3;
-export const QUEST_REWARD = 10; // görev başına elmas
-export const QUEST_BONUS = 15; // üçü birden bitince
+export const QUEST_REWARD = 10; // gems per quest
+export const QUEST_BONUS = 15; // bonus for finishing all three
 
 const KINDS: QuestKind[] = ['xp', 'lessons', 'combo', 'storm', 'review'];
 
@@ -28,11 +28,12 @@ const TARGETS: Record<QuestKind, number[]> = {
   review: [10, 15, 20],
 };
 
-/* combo ve storm bir turun en iyisini ölçer, ötekiler gün boyu birikir. */
+/* combo and storm measure the best of a single run; the others accumulate
+   over the day. */
 const PEAK: QuestKind[] = ['combo', 'storm'];
 
 function seedFrom(day: string): number {
-  // FNV-1a; tarih dizesi kısa, çakışma derdi yok.
+  // FNV-1a; the date string is short, so collisions are not a concern.
   let h = 2166136261;
   for (let i = 0; i < day.length; i++) {
     h ^= day.charCodeAt(i);

@@ -1,0 +1,237 @@
+{
+  "version": "2.0.0",
+  "inputs": [
+    {
+      "id": "appVersion",
+      "type": "promptString",
+      "description": "Octaglot version number (e.g. 1.0.2)",
+      "default": "1.0.0"
+    }
+  ],
+  "tasks": [
+    {
+      "label": "octaglot: dev",
+      "type": "shell",
+      "command": "lsof -ti:1420 | xargs kill -9 2>/dev/null; npm run tauri dev",
+      "problemMatcher": [],
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new",
+        "focus": true
+      }
+    },
+    {
+      "label": "octaglot: build (.app + DMG)",
+      "type": "shell",
+      "command": "npm run tauri build",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new",
+        "focus": true
+      }
+    },
+    {
+      "label": "octaglot: install to Desktop",
+      "type": "shell",
+      "command": "rm -rf \"$HOME/Desktop/Octaglot.app\" && cp -R \"${workspaceFolder}/src-tauri/target/release/bundle/macos/Octaglot.app\" \"$HOME/Desktop/\" && echo 'Octaglot.app installed to the Desktop.'",
+      "problemMatcher": [],
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "focus": true
+      }
+    },
+    {
+      "label": "octaglot: release (build + install)",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "octaglot: build (.app + DMG)",
+        "octaglot: install to Desktop"
+      ],
+      "problemMatcher": [],
+      "group": "build"
+    },
+    {
+      "label": "octaglot: open build folder",
+      "type": "shell",
+      "command": "open ${workspaceFolder}/src-tauri/target/release/bundle",
+      "problemMatcher": [],
+      "group": "build",
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "octaglot: set version",
+      "type": "shell",
+      "command": "node ${workspaceFolder}/scripts/set-version.mjs ${input:appVersion}",
+      "problemMatcher": [],
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "focus": true
+      }
+    },
+    {
+      "label": "web: dev (Vite)",
+      "type": "shell",
+      "command": "lsof -ti:1420 | xargs kill -9 2>/dev/null; npm run dev",
+      "problemMatcher": [],
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new",
+        "focus": true
+      }
+    },
+    {
+      "label": "web: build (tsc + vite)",
+      "type": "shell",
+      "command": "npm run build",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      }
+    },
+    {
+      "label": "web: typecheck",
+      "type": "shell",
+      "command": "npx tsc --noEmit",
+      "problemMatcher": [],
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "focus": true
+      }
+    },
+    {
+      "label": "octaglot: free port 1420",
+      "type": "shell",
+      "command": "lsof -ti:1420 | xargs kill -9 2>/dev/null && echo 'Port 1420 freed.' || echo 'Port 1420 was already free.'",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "web: clean reset (kill node)",
+      "type": "shell",
+      "command": "killall node 2>/dev/null || echo 'Node processes already stopped.'",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "web: install",
+      "type": "shell",
+      "command": "npm install",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      }
+    },
+    {
+      "label": "content: candidates (Tatoeba + frekans)",
+      "type": "shell",
+      "command": "npm run content:candidates",
+      "problemMatcher": [],
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new",
+        "focus": true
+      }
+    },
+    {
+      "label": "content: glosses (Wiktionary indir)",
+      "type": "shell",
+      "command": "npm run content:glosses",
+      "problemMatcher": [],
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new",
+        "focus": true
+      }
+    },
+    {
+      "label": "content: derive (re-derive without downloading)",
+      "type": "shell",
+      "command": "npm run content:derive",
+      "problemMatcher": [],
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new",
+        "focus": true
+      }
+    },
+    {
+      "label": "content: build (content.db)",
+      "type": "shell",
+      "command": "npm run content:build",
+      "problemMatcher": [],
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new",
+        "focus": true
+      }
+    },
+    {
+      "label": "git: tag & push",
+      "type": "shell",
+      "command": "git tag v${input:appVersion} && git push origin v${input:appVersion}",
+      "problemMatcher": [],
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new",
+        "focus": true
+      }
+    },
+    {
+      "label": "git: delete tag (local)",
+      "type": "shell",
+      "command": "git tag -d v${input:appVersion}",
+      "problemMatcher": [],
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "focus": true
+      }
+    },
+    {
+      "label": "git: delete tag (local + remote)",
+      "type": "shell",
+      "command": "git tag -d v${input:appVersion} && git push --delete origin v${input:appVersion}",
+      "problemMatcher": [],
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "focus": true
+      }
+    }
+  ]
+}

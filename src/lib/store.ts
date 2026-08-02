@@ -19,8 +19,8 @@ import type { Lesson, Unit } from './types';
 const MAX_HEARTS = 5;
 const HEART_REFILL_MIN = 30; // dakikada bir can geri gelir
 const REFILL_COST = 50; // elmasla tam dolum
-const LEGENDARY_COST = 30; // efsaneye giriş
-const LEGENDARY_XP = 60; // efsane turu ödülü
+const LEGENDARY_COST = 30; // cost of entering legendary
+const LEGENDARY_XP = 60; // reward for a legendary round
 
 const dayKey = (d = new Date()) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -49,19 +49,20 @@ type State = {
   done: Map<number, { accuracy: number; times: number }>;
   todayXp: number;
   profile: Profile;
-  /* Vadesi gelmiş tekrar kelimesi sayısı. Tekrar modunun kilitli mi açık mı
-     olduğunu yan menünün bilmesi gerekiyor; her çizimde veritabanına sormamak
-     için sayı burada tutulup ders bitiminde tazeleniyor. */
+  /* How many review words are due. The side menu needs to know whether review
+     mode is locked or open; to avoid querying the database on every render the
+     count is held here and refreshed when a lesson ends. */
   dueCount: number;
-  /* Fırtına: rekor ve bugünkü tur sayısı. Tur sayısı XP tavanı için gerekiyor,
-     her turda veritabanına sormamak için burada tutuluyor. */
+  /* Storm: high score and today's round count. The round count is needed for
+     the XP cap and is kept here to avoid a query on every round. */
   stormBest: number;
   stormRunsToday: number;
-  /* Bitmiş derslerin kelime sayısı — fırtına havuzunun büyüklüğü, kilit koşulu. */
+  /* Word count across completed lessons - the storm pool size, and the unlock
+     condition. */
   learnedWordCount: number;
-  /* Bugünün üç görevi. */
+  /* Today's three quests. */
   quests: Quest[];
-  /* Efsane seviyesi geçilmiş ders kimlikleri. */
+  /* Ids of lessons cleared at legendary level. */
   legendary: Set<number>;
 
   init: () => Promise<void>;
@@ -69,8 +70,9 @@ type State = {
   loseHeart: () => Promise<void>;
   refillHearts: (withGems: boolean) => Promise<boolean>;
   completeLesson: (lessonId: number, accuracy: number, xp: number) => Promise<void>;
-  /* Girişte elmas düşer; tur başarısız bitse de geri gelmez — bahsin anlamı bu.
-     Elmas yetmezse false döner, çağıran uyarır. */
+  /* Gems are spent on entry and are not refunded if the round is failed - that
+     is the point of the wager. Returns false when there are not enough gems,
+     and the caller warns the user. */
   startLegendary: () => Promise<boolean>;
   completeLegendary: (lessonId: number) => Promise<void>;
   reviewWord: (wordId: number, correct: boolean) => Promise<void>;
@@ -111,7 +113,7 @@ export const useGame = create<State>((set, get) => ({
   async init() {
     const [units, lessons] = await Promise.all([getUnits(), getLessons()]);
 
-    // Tarayıcıda kalıcı depolama yok — tasarımı gözden geçirmek için yeterli.
+    // No persistent storage in the browser - enough to review the design.
     if (!isTauri) {
       const quests = await loadQuests(dayKey());
       set({ ready: true, units, lessons, done: new Map(), profile: blank, todayXp: 0, quests });
@@ -123,7 +125,7 @@ export const useGame = create<State>((set, get) => ({
     const rows = await db.select<Profile[]>('SELECT * FROM profile WHERE id = 1');
     let p = { ...blank, ...rows[0] };
 
-    // Seri (streak) kontrolü: dün oynadıysa devam, daha eskiyse sıfırlanır.
+    // Streak check: playing yesterday continues it, anything older resets it.
     const today = dayKey();
     if (p.last_active) {
       const gap = daysBetween(p.last_active, today);
@@ -159,8 +161,8 @@ export const useGame = create<State>((set, get) => ({
 
     const [stormBest, stormRunsToday] = await Promise.all([getStat('storm_best'), getStat(`storm_runs_${today}`)]);
 
-    /* Bitmiş derslerin kelime sayısı lessons tablosundaki word_count'tan
-       toplanıyor — içerik veritabanına ikinci bir sorgu atmaya gerek yok. */
+    /* The completed-lesson word count is summed from word_count in the lessons
+       table - no second query against the content database is needed. */
     const learnedWordCount = lessons.filter((l) => done.has(l.id)).reduce((n, l) => n + l.word_count, 0);
 
     const [quests, legendaryIds] = await Promise.all([loadQuests(today), loadLegendary()]);
@@ -186,7 +188,7 @@ export const useGame = create<State>((set, get) => ({
     const p = get().profile;
     const xp = p.xp + n;
 
-    // İlk XP günü seriyi ilerletir.
+    // The first XP of the day advances the streak.
     let streak = p.streak;
     if (p.last_active !== today) {
       streak = p.last_active && daysBetween(p.last_active, today) === 1 ? p.streak + 1 : 1;
@@ -248,13 +250,13 @@ export const useGame = create<State>((set, get) => ({
     });
     set({ done });
 
-    /* Ders ilk kez bitiyorsa kelimeleri fırtına havuzuna katılır. */
+    /* The first time a lesson is completed, its words join the storm pool. */
     if (!prev) {
       const lesson = get().lessons.find((l) => l.id === lessonId);
       if (lesson) set({ learnedWordCount: get().learnedWordCount + lesson.word_count });
     }
 
-    // Ders bitişinde elmas ödülü — mükemmel derse ekstra.
+    // Gem reward on lesson completion - extra for a perfect lesson.
     const bonus = accuracy === 1 ? 3 : 1;
     const p = get().profile;
     if (isTauri) {
@@ -288,8 +290,8 @@ export const useGame = create<State>((set, get) => ({
     await get().addXp(LEGENDARY_XP);
   },
 
-  /* Görev ilerlemesinin tek kapısı. Her olay kaynağı (XP, ders, tekrar,
-     fırtına) buradan geçer; sayma kuralı `quests.ts`'te durur. */
+  /* The single gate for quest progress. Every event source (XP, lessons,
+     review, storm) goes through here; the counting rule lives in `quests.ts`. */
   async bumpQuest(kind, n) {
     const day = dayKey();
     const quests = get().quests;
@@ -312,7 +314,7 @@ export const useGame = create<State>((set, get) => ({
     if (!q || !isComplete(q) || q.claimed) return;
 
     const rest = get().quests.map((x) => (x.idx === idx ? { ...x, claimed: true } : x));
-    // Üçü de alındıysa bonus. Kontrol güncel listeye göre yapılıyor.
+    // Bonus once all three are claimed. Checked against the current list.
     const all = rest.every((x) => x.claimed);
     const gems = get().profile.gems + QUEST_REWARD + (all ? QUEST_BONUS : 0);
 
@@ -324,8 +326,8 @@ export const useGame = create<State>((set, get) => ({
     set({ quests: rest, profile: { ...get().profile, gems } });
   },
 
-  /* Fırtına turu sonu: XP yaz, rekoru güncelle, günün tur sayacını artır.
-     Kazanılan XP döner — sonuç ekranı onu göstersin diye. */
+  /* End of a storm round: record XP, update the high score, bump the day's
+     round counter. Returns the XP earned so the result screen can show it. */
   async recordStorm(score) {
     const today = dayKey();
     const runs = get().stormRunsToday;
@@ -340,9 +342,9 @@ export const useGame = create<State>((set, get) => ({
     return xp;
   },
 
-  /* Aralıklı tekrar: doğru bilinen kelime katlanarak uzar, yanlış olan başa döner.
-     Erken dönüş yok: SRS yazımı Tauri'ye bağlı ama görev sayacı tarayıcı
-     kipinde de işlemeli. */
+  /* Spaced repetition: a word answered correctly grows exponentially, a wrong
+     one goes back to the start. No early return: the SRS write depends on
+     Tauri, but the quest counter has to run in browser mode too. */
   async reviewWord(wordId, correct) {
     if (isTauri) {
       const db = await openUser();

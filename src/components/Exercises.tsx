@@ -7,8 +7,9 @@ import { Speaker } from './Icons';
 
 export type AnswerValue = string | string[] | number | null;
 
-/* Alıştırmalar cevabı kendileri tutmaz; ders ekranı tek bir `value` üzerinden
-   yönetir, böylece "Kontrol et" butonu ve geri bildirim tek yerde kalır. */
+/* Exercises do not hold the answer themselves; the lesson screen manages it
+   through a single `value`, which keeps the check button and the feedback in
+   one place. */
 type Props = {
   ex: Exercise;
   value: AnswerValue;
@@ -16,8 +17,8 @@ type Props = {
   locked: boolean;
 };
 
-/* Kelime düzeyinde düzenleme mesafesi — yazarak çeviride tek kelimelik
-   sapmaları (bir "the", bir çoğul eki) doğru saymak için. */
+/* Word-level edit distance - used so free translation accepts a single-word
+   deviation (a stray "the", a plural ending) as correct. */
 function wordDistance(a: string[], b: string[]): number {
   const m = Array.from({ length: a.length + 1 }, (_, i) =>
     Array.from({ length: b.length + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0)),
@@ -117,7 +118,7 @@ export function ExerciseView({ ex, value, setValue, locked }: Props) {
   }
 }
 
-/* ---------------- 1. Kelime kartı ---------------- */
+/* ---------------- 1. Flashcard ---------------- */
 
 function Flashcard({ word, onSeen }: { word: Word; onSeen: () => void }) {
   const [flipped, setFlipped] = useState(false);
@@ -150,7 +151,7 @@ function Flashcard({ word, onSeen }: { word: Word; onSeen: () => void }) {
           <CardFace>
             <div style={{ fontSize: '2.75rem', fontWeight: 900 }}>{word.en}</div>
             {word.pos && (
-              <div style={{ color: 'var(--wolf)', fontSize: 'var(--t-small)', marginTop: 6 }}>
+              <div style={{ color: 'var(--ink-2)', fontSize: 'var(--t-small)', marginTop: 6 }}>
                 {posTr[word.pos] ?? word.pos}
               </div>
             )}
@@ -164,18 +165,18 @@ function Flashcard({ word, onSeen }: { word: Word; onSeen: () => void }) {
             >
               <Speaker size={20} /> Dinle
             </button>
-            <div style={{ position: 'absolute', bottom: 14, color: 'var(--hare)', fontSize: 'var(--t-tiny)' }}>
+            <div style={{ position: 'absolute', bottom: 14, color: 'var(--muted)', fontSize: 'var(--t-tiny)' }}>
               Anlamı için karta tıkla
             </div>
           </CardFace>
           <CardFace back>
-            <div style={{ fontSize: '2.25rem', fontWeight: 900, color: 'var(--green-dark)' }}>{word.tr}</div>
+            <div style={{ fontSize: '2.25rem', fontWeight: 900, color: 'var(--brand-text)' }}>{word.tr}</div>
             {word.alts && (
-              <div style={{ color: 'var(--wolf)', marginTop: 10, fontSize: 'var(--t-small)' }}>
+              <div style={{ color: 'var(--ink-2)', marginTop: 10, fontSize: 'var(--t-small)' }}>
                 ayrıca: {word.alts.split('|').join(', ')}
               </div>
             )}
-            <div style={{ position: 'absolute', bottom: 14, color: 'var(--hare)', fontSize: 'var(--t-tiny)' }}>
+            <div style={{ position: 'absolute', bottom: 14, color: 'var(--muted)', fontSize: 'var(--t-tiny)' }}>
               {word.en}
             </div>
           </CardFace>
@@ -193,8 +194,8 @@ function CardFace({ children, back = false }: { children: React.ReactNode; back?
         inset: 0,
         backfaceVisibility: 'hidden',
         transform: back ? 'rotateY(180deg)' : undefined,
-        background: back ? 'var(--green-wash)' : 'var(--snow)',
-        border: `2px solid ${back ? 'var(--green)' : 'var(--swan)'}`,
+        background: back ? 'var(--brand-wash)' : 'var(--surface)',
+        border: `2px solid ${back ? 'var(--brand)' : 'var(--line)'}`,
         borderBottomWidth: 4,
         borderRadius: 'var(--r-xl)',
         display: 'flex',
@@ -208,7 +209,7 @@ function CardFace({ children, back = false }: { children: React.ReactNode; back?
   );
 }
 
-/* ---------------- 2. Çoktan seçmeli ---------------- */
+/* ---------------- 2. Multiple choice ---------------- */
 
 function Choice({ ex, value, setValue, locked }: Props & { ex: Extract<Exercise, { kind: 'choice' }> }) {
   const askEn = ex.ask === 'en2tr';
@@ -261,7 +262,7 @@ function Choice({ ex, value, setValue, locked }: Props & { ex: Extract<Exercise,
   );
 }
 
-/* ---------------- 3. Eşleştirme ---------------- */
+/* ---------------- 3. Matching ---------------- */
 
 function Match({ pairs, onDone }: { pairs: Word[]; onDone: () => void }) {
   const left = useMemo(() => shuffle(pairs), [pairs]);
@@ -319,7 +320,7 @@ function Match({ pairs, onDone }: { pairs: Word[]; onDone: () => void }) {
   );
 }
 
-/* ---------------- 4. Boşluk doldurma ---------------- */
+/* ---------------- 4. Fill in the blank ---------------- */
 
 function Blank({ ex, value, setValue, locked }: Props & { ex: Extract<Exercise, { kind: 'blank' }> }) {
   const tokens = splitWords(ex.sentence.en);
@@ -336,9 +337,9 @@ function Blank({ ex, value, setValue, locked }: Props & { ex: Extract<Exercise, 
                 style={{
                   display: 'inline-block',
                   minWidth: 120,
-                  borderBottom: '3px solid var(--hare)',
+                  borderBottom: '3px solid var(--muted)',
                   textAlign: 'center',
-                  color: 'var(--blue-dark)',
+                  color: 'var(--sky-text)',
                 }}
               >
                 {value ? String(value) : ' '}
@@ -349,7 +350,7 @@ function Blank({ ex, value, setValue, locked }: Props & { ex: Extract<Exercise, 
           </span>
         ))}
       </div>
-      <div style={{ color: 'var(--wolf)', marginBottom: 24 }}>{ex.sentence.tr}</div>
+      <div style={{ color: 'var(--ink-2)', marginBottom: 24 }}>{ex.sentence.tr}</div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
         {ex.options.map((o, i) => (
           <button
@@ -369,7 +370,7 @@ function Blank({ ex, value, setValue, locked }: Props & { ex: Extract<Exercise, 
   );
 }
 
-/* ---------------- 5/6. Kelime bankası ve dinle-yaz ---------------- */
+/* ---------------- 5/6. Word bank and listen-and-type ---------------- */
 
 function Bank({
   ex,
@@ -384,7 +385,7 @@ function Bank({
     if (listen) speak(ex.sentence.en);
   }, [ex.sentence.id]);
 
-  // Aynı kelime cümlede iki kez geçebilir; bankayı indekse göre tüketiyoruz.
+  // The same word can appear twice in a sentence; we consume the bank by index.
   const used = useMemo(() => {
     const counts = new Map<string, number>();
     for (const c of chosen) counts.set(c, (counts.get(c) ?? 0) + 1);
@@ -409,7 +410,7 @@ function Bank({
 
       {listen ? (
         <button
-          className="btn btn--blue"
+          className="btn btn--sky"
           onClick={() => speak(ex.sentence.en)}
           style={{ marginBottom: 28, padding: '20px 28px', fontSize: '1.5rem' }}
         >
@@ -419,12 +420,12 @@ function Bank({
         <div style={{ fontSize: '1.75rem', fontWeight: 800, marginBottom: 28 }}>{ex.sentence.tr}</div>
       )}
 
-      {/* cevap satırı */}
+      {/* answer row */}
       <div
         style={{
           minHeight: 72,
-          borderTop: '2px solid var(--swan)',
-          borderBottom: '2px solid var(--swan)',
+          borderTop: '2px solid var(--line)',
+          borderBottom: '2px solid var(--line)',
           padding: '14px 0',
           marginBottom: 28,
           display: 'flex',
@@ -467,7 +468,7 @@ function Bank({
   );
 }
 
-/* ---------------- 7. Cümle sıralama ---------------- */
+/* ---------------- 7. Sentence ordering ---------------- */
 
 function Order({ ex, value, setValue, locked }: Props & { ex: Extract<Exercise, { kind: 'order' }> }) {
   const scrambled = useMemo(() => shuffle(splitWords(ex.sentence.en)), [ex.sentence.id]);
@@ -489,12 +490,12 @@ function Order({ ex, value, setValue, locked }: Props & { ex: Extract<Exercise, 
   return (
     <div>
       <div style={prompt}>Kelimeleri doğru sıraya diz</div>
-      <div style={{ color: 'var(--wolf)', fontSize: 'var(--t-lead)', marginBottom: 24 }}>{ex.sentence.tr}</div>
+      <div style={{ color: 'var(--ink-2)', fontSize: 'var(--t-lead)', marginBottom: 24 }}>{ex.sentence.tr}</div>
 
       <div
         style={{
           minHeight: 64,
-          border: '2px dashed var(--swan)',
+          border: '2px dashed var(--line)',
           borderRadius: 'var(--r-md)',
           padding: 12,
           marginBottom: 24,
@@ -538,7 +539,7 @@ function Order({ ex, value, setValue, locked }: Props & { ex: Extract<Exercise, 
   );
 }
 
-/* ---------------- 8. Yazarak çeviri ---------------- */
+/* ---------------- 8. Free translation ---------------- */
 
 function TypeIn({ ex, value, setValue, locked }: Props & { ex: Extract<Exercise, { kind: 'typeTr' }> }) {
   return (
@@ -558,10 +559,10 @@ function TypeIn({ ex, value, setValue, locked }: Props & { ex: Extract<Exercise,
           padding: 16,
           fontSize: 'var(--t-lead)',
           fontWeight: 600,
-          border: '2px solid var(--swan)',
+          border: '2px solid var(--line)',
           borderRadius: 'var(--r-md)',
           resize: 'none',
-          color: 'var(--eel)',
+          color: 'var(--ink)',
         }}
       />
     </div>
