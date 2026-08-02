@@ -33,8 +33,10 @@
     "active": true,
     "targets": [
       "app",
-      "dmg"
+      "dmg",
+      "nsis"
     ],
+    "publisher": "Octaglot App",
     "category": "Education",
     "shortDescription": "Gamified English learning app",
     "longDescription": "Octaglot - a gamified English course from A1 to B1, explained in Turkish.",
