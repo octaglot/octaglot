@@ -1,179 +1,185 @@
 # Octaglot
 
-Türkçe anlatımlı, oyunlaştırılmış İngilizce öğrenme uygulaması. macOS masaüstü
-uygulaması olarak çalışır, internet bağlantısı gerektirmez.
+A gamified app for learning English, explained in Turkish. It runs as a macOS
+desktop application and needs no internet connection.
 
-40 ünite · 160 ders · 720 kelime · 4160 cümle · A1 → B1
+40 units · 160 lessons · 720 words · 4160 sentences · A1 → B1
 
-## Kurulum
+## Setup
 
-Uygulama `Octaglot.app` olarak derlenir:
+The app builds to `Octaglot.app`:
 
 ```sh
 npm install
 npm run tauri build
 ```
 
-Sonuç: `src-tauri/target/release/bundle/macos/Octaglot.app`
+Result: `src-tauri/target/release/bundle/macos/Octaglot.app`
 
-Geliştirirken:
+While developing:
 
 ```sh
 npm run tauri dev
 ```
 
-## İçerik nasıl üretiliyor
+## How the content is generated
 
-Ders içeriği elle yazılmadı; açık kaynaklardan derlendi.
+Lesson content was not written by hand; it is compiled from open sources.
 
-| Kaynak | Ne alınıyor | Lisans |
+| Source | What it provides | License |
 | --- | --- | --- |
-| [Tatoeba](https://tatoeba.org) | 660 bin Türkçe–İngilizce cümle çifti | CC-BY 2.0 FR |
-| [hermitdave/FrequencyWords](https://github.com/hermitdave/FrequencyWords) | İngilizce kelime sıklık listesi | CC-BY-SA 4.0 |
-| [Wiktionary](https://kaikki.org) | Kelimelerin Türkçe karşılıkları | CC-BY-SA 3.0 |
-| [FreeDict](https://freedict.org) | Yedek sözlük | GPL |
+| [Tatoeba](https://tatoeba.org) | 660k Turkish–English sentence pairs | CC-BY 2.0 FR |
+| [hermitdave/FrequencyWords](https://github.com/hermitdave/FrequencyWords) | English word frequency list | CC-BY-SA 4.0 |
+| [Wiktionary](https://kaikki.org) | Turkish glosses for the words | CC-BY-SA 3.0 |
+| [FreeDict](https://freedict.org) | Fallback dictionary | GPL |
 
-Müfredat `scripts/curriculum.mjs` içinde tanımlı: 40 tematik ünite, her birinin
-çekirdek kelime listesi var. Derleyici bu listeyi sıklık sırasına göre
-tamamlıyor, sonra her ders için **yalnızca o ana kadar öğretilmiş kelimelerden
-oluşan** Tatoeba cümlelerini seçiyor. Zorluk böylece kendiliğinden ve doğru
-sırayla artıyor.
+The curriculum is defined in `scripts/curriculum.mjs`: 40 thematic units, each
+with its own core word list. The builder fills those lists out by frequency,
+then picks, for every lesson, only the Tatoeba sentences **built entirely from
+words taught up to that point**. Difficulty therefore rises on its own, in the
+right order.
 
-İçeriği yeniden üretmek (ham veri `data/raw/` altına iner, ~180 MB):
+To regenerate the content (raw data lands under `data/raw/`, ~180 MB):
 
 ```sh
-npm run content:candidates   # aday kelime listesini çıkarır
-npm run content:glosses      # Wiktionary'den Türkçe karşılıkları çeker
-npm run content:build        # src-tauri/resources/content.db üretir
+npm run content:candidates   # extract the candidate word list
+npm run content:glosses      # pull Turkish glosses from Wiktionary
+npm run content:build        # produce src-tauri/resources/content.db
 ```
 
-`content:glosses` indirdiklerini `data/kaikki-raw.json` içinde önbelleğe alır.
-Karşılık seçme mantığını değiştirdiğinde yeniden indirmen gerekmez:
+`content:glosses` caches its downloads in `data/kaikki-raw.json`. You do not
+need to download again when you change the gloss-selection logic:
 
 ```sh
 npm run content:derive
 ```
 
-### Kalite notları
+### Notes on quality
 
-Sözlükte anlam seçimi Wiktionary'nin **sayfa sırasına** göre yapılıyor. Denenen
-alternatifler daha kötüydü: "en çok çevirisi olan anlam" kuralı `water → sulamak`,
-`run → koşu`, `because → öyle işte` veriyordu; "önce isim" kuralı ise
-`go → go` (Go oyunu) veriyordu.
+Sense selection follows Wiktionary's **page order**. The alternatives that were
+tried came out worse: "the sense with the most translations" gave
+`water → sulamak`, `run → koşu`, `because → öyle işte`; "nouns first" gave
+`go → go` (the board game).
 
-Sıklık listesi altyazı korpusundan türediği için küfür içeriyor; `BLOCKLIST` ile
-eleniyor. `went → go` gibi çekimli biçimler `INFLECTED` ile ders kelimesi
-olmaktan çıkarılıyor. Kalan tekil hatalar `OVERRIDES` ile elle düzeltiliyor
-(`glass → bardak`, `plane → uçak` gibi).
+The frequency list is derived from a subtitle corpus, so it contains profanity;
+`BLOCKLIST` filters it out. Inflected forms such as `went → go` are removed from
+the lesson vocabulary by `INFLECTED`. The individual errors that remain are
+corrected by hand through `OVERRIDES` (`glass → bardak`, `plane → uçak`).
 
-## Mimari
+## Architecture
 
 ```
 src/
   lib/
-    db.ts          içerik ve kullanıcı veritabanı erişimi
-    store.ts       can / XP / seri / elmas / aralıklı tekrar / görev / efsane
-    generate.ts    ders verisinden alıştırma üretimi
-    storm.ts       fırtına havuzu, kart çekme, puan (saf)
-    quests.ts      tohumlu günlük görev üretimi (saf)
-    rand.ts        shuffle / pick / tohumlu üreteç
-    audio.ts       Web Audio ses efektleri + telaffuz
+    db.ts          content and user database access
+    store.ts       hearts / XP / streak / gems / spaced repetition / quests / legendary
+    generate.ts    exercise generation from lesson data
+    storm.ts       storm pool, card draw, scoring (pure)
+    quests.ts      seeded daily quest generation (pure)
+    rand.ts        shuffle / pick / seeded generator
+    audio.ts       Web Audio sound effects + pronunciation
   components/
-    Exercises.tsx  8 alıştırma tipi ve puanlama
-    QuestCard.tsx  günlük görev kartı
-    Mascot.tsx     Okta (animasyonlu SVG ahtapot)
-    Icons.tsx      düz SVG ikon seti
-  screens/         harita, ders, fırtına, sonuç
+    Exercises.tsx  8 exercise types and scoring
+    QuestCard.tsx  daily quest card
+    Mascot.tsx     Okta (animated SVG octopus)
+    Icons.tsx      flat SVG icon set
+  screens/         map, lesson, storm, results
 src-tauri/
-  src/lib.rs       içerik veritabanını yazılabilir dizine kopyalar
-  resources/       content.db (uygulamayla paketlenir)
+  src/lib.rs       copies the content database into a writable directory
+  resources/       content.db (shipped with the app)
 ```
 
-**İki veritabanı var.** `content.db` uygulamayla paketlenir ve salt-okunurdur;
-Rust tarafı ilk açılışta onu yazılabilir dizine kopyalar. `user.db` ilerlemeyi
-tutar. Ayrı olmalarının sebebi: içerik güncellendiğinde ilerleme silinmesin.
+**There are two databases.** `content.db` ships with the app and is read-only;
+on first launch the Rust side copies it to a writable directory. `user.db`
+holds progress. They are separate so that updating the content does not wipe
+the user's progress.
 
-**Ses dosyası yok.** Efektler Web Audio API ile anlık üretiliyor, telaffuz
-`speechSynthesis` ile yapılıyor. Böylece paket küçük kalıyor ve telifli ses
-kullanılmıyor.
+**There are no audio files.** Effects are synthesized on the fly with the Web
+Audio API and pronunciation goes through `speechSynthesis`. This keeps the
+bundle small and avoids licensed audio.
 
-## Alıştırma tipleri
+## Exercise types
 
-Kelime kartı · Çoktan seçmeli · Eşleştirme · Boşluk doldurma · Kelime bankasıyla
-çeviri · Dinle-yaz · Cümle sıralama · Yazarak çeviri
+Flashcard · Multiple choice · Matching · Fill in the blank · Translation with a
+word bank · Listen and type · Sentence ordering · Free translation
 
-Ders dışında üç mod var, aşağıda anlatılıyor.
+Three modes exist outside lessons; they are described below.
 
-Yazarak çeviride kelime düzeyinde tek sapmaya izin veriliyor — Tatoeba'da her
-cümlenin tek bir referans çevirisi olduğu için katı eşleşme haksız olurdu.
+Free translation allows a single word-level deviation — Tatoeba gives each
+sentence one reference translation, so strict matching would be unfair.
 
-## Ders dışı modlar
+## Modes outside lessons
 
-Uygulama çevrimdışı ve tek kullanıcılı; Duolingo'nun lig/arkadaş yarışı buraya
-taşınamıyor. Sahte rakip uydurmak yerine kişi kendi geçmişiyle ve günlük
-görevlerle yarışıyor.
+The app is offline and single-user, so Duolingo's leagues and friend
+competition do not carry over. Rather than inventing fake rivals, you compete
+against your own history and against daily quests.
 
-**Eşleştirme Fırtınası.** 60 saniyede kelime çifti eşleştirme. Can harcamaz,
-yanlış cevap süreden 2 saniye götürür, kombo beşte doyar. Havuz bitmiş
-derslerin kelimelerinden kurulur; vadesi gelmiş tekrar kelimeleri öne alınır ve
-verilen her cevap aralıklı tekrara yazılır — mod tekrarın kopyası değil,
-hızlandırıcısı. 20 kelime öğrenilmeden kilitli durur, çünkü küçük havuzda aynı
-çift üst üste gelir. Günde ilk 3 tur XP verir (puanın 25'te biri, en çok 40):
-sınırsız XP veren 60 saniyelik bir mod 50 XP'lik günlük hedefi anlamsızlaştırır.
+**Matching Storm.** Match word pairs against a 60-second clock. It costs no
+hearts, a wrong answer takes 2 seconds off the timer, and the combo caps at
+five. The pool is built from the words of completed lessons; words due for
+review are moved to the front, and every answer given is written back into
+spaced repetition — the mode is an accelerator for review, not a copy of it. It
+stays locked until 20 words are learned, because in a small pool the same pair
+keeps reappearing. The first 3 rounds each day award XP (a twenty-fifth of the
+score, up to 40): a 60-second mode handing out unlimited XP would make the
+50 XP daily goal meaningless.
 
-**Günlük görevler.** Günde üç görev, günün tarihinden türeyen tohumla seçilir —
-uygulama gün içinde kapanıp açılınca aynı üçlü çıkar. Görev başına 10 elmas,
-üçü birden bitince 15 bonus; ödül elle alınır. Ölçülen şeyler mevcut olaylardan
-geliyor: XP, biten ders, bir derste en uzun doğru serisi, fırtına puanı, tekrar
-edilen kelime.
+**Daily quests.** Three quests a day, chosen with a seed derived from the
+date — close and reopen the app and the same three come back. Each quest pays
+10 gems, finishing all three adds a 15 bonus; rewards are claimed manually.
+What gets measured comes from events that already exist: XP, lessons finished,
+the longest correct streak within a lesson, storm score, words reviewed.
 
-**Efsane seviye.** Bitmiş bir derse tıklayınca çıkan seçenek. 30 elmasla
-girilir, can harcamaz; yerine üç hata hakkı vardır ve dolunca elmas geri
-gelmez. Sorular tek dersten değil ünitenin tamamından gelir ve yalnızca üretim
-gerektiren tipler kullanılır (yazarak çeviri, dinle-yaz, boşluk doldurma, cümle
-sıralama) — kelime bankası ve çoktan seçmeli tanımayla çözülebildiği için
-dışarıda. Geçilen ders haritada taç ve altın halkayla durur, ödülü 60 XP.
+**Legendary level.** An option that appears when you tap a completed lesson.
+It costs 30 gems and no hearts; instead you get three mistakes, and once they
+are used up the gems are not refunded. Questions come from the whole unit
+rather than a single lesson, and only production-based types are used (free
+translation, listen and type, fill in the blank, sentence ordering) — the word
+bank and multiple choice are left out because they can be solved by
+recognition. A passed lesson keeps a crown and a gold ring on the map, and the
+reward is 60 XP.
 
-## Test
+## Tests
 
 ```sh
 npm test
 ```
 
-Vitest, yalnız saf modülleri kapsıyor (`storm.ts`, `quests.ts`,
-`legendaryKinds.ts`). Ekranlar ve store test edilmiyor: `db.ts` Tauri
-eklentisini çekiyor, Node ortamında yüklenmiyor. Oyun mantığı bu yüzden
-veritabanına ve React'e dokunmayan modüllere ayrıldı.
+Vitest covers only the pure modules (`storm.ts`, `quests.ts`,
+`legendaryKinds.ts`). Screens and the store are not tested: `db.ts` pulls in the
+Tauri plugin, which does not load under Node. The game logic was therefore
+split into modules that touch neither the database nor React.
 
-## Tasarım
+## Design
 
-Duolingo'dan yalnızca **mekanik** alındı: 3B basma butonlar, yuvarlak ağır
-tipografi (Nunito), zigzag ders patikası, can/seri/XP döngüsü. **Palet
-bilinçli olarak alınmadı** — Duolingo asit yeşili (#58cc02) ve saf gri nötrler
-üzerine kuruludur; Octaglot mor (#8a63d2, GitHub Desktop moru) üzerine kurulu
-ve nötrleri de mora çalar.
+Only the **mechanics** were taken from Duolingo: 3D push buttons, round heavy
+typography (Nunito), the zigzag lesson path, the hearts/streak/XP loop. The
+**palette was deliberately not taken** — Duolingo is built on an acid green
+(#58cc02) over pure grey neutrals; Octaglot is built on purple (#8a63d2, the
+GitHub Desktop purple) and pulls its neutrals toward purple as well.
 
-Bütün renkler `src/design/tokens.css` içinde **rol adlarıyla** durur
-(`--brand`, `--success`, `--danger`…), bileşenlerde hex yazılmaz. Üstünde beyaz
-metin duran geniş yüzeylerde `--brand` değil `--brand-strong` / `--deep-*`
-tonları kullanılır: `--brand` beyazla 4.38:1 verip WCAG AA eşiğinin altında
-kalıyor.
+Every color lives in `src/design/tokens.css` under a **role name**
+(`--brand`, `--success`, `--danger`…); components never write hex. Broad
+surfaces carrying white text use `--brand-strong` / `--deep-*` rather than
+`--brand`: against white, `--brand` measures 4.38:1 and falls below the WCAG AA
+threshold.
 
-### Marka
+### Brand
 
-**İşaret** kenetlenmiş iki halkadır — iki dil birbirine kilitli. Dış yarıçap 60,
-iç yarıçap 30, iki merkez 60 birim arayla; her halkanın diğerine denk gelen
-çeyreği boş bırakıldığı için üst üste binmeden kenetlenirler. Kalınlık her yerde
-eşit olduğundan 16 piksele indiğinde de dolmuyor. Kaynak dosyalar
-`public/brand/` altında.
+**The mark** is two interlocking rings — two languages locked together. Outer
+radius 60, inner radius 30, centers 60 units apart; each ring leaves the
+quarter that meets the other one empty, so they interlock without overlapping.
+The stroke is uniform throughout, so the mark does not fill in at 16 pixels.
+Source files live under `public/brand/`.
 
-**Uygulama ikonu** Apple'ın macOS ızgarasına uyar: 1024'lük tuvalde çizim
-824×824'lük alana oturur, kalan kenar boşluğu saydamdır — Dock'ta komşularıyla
-aynı optik boyutu ancak böyle tutturur. Köşeler yuvarlatılmış kare değil,
-süperelips (squircle) ile çizilir.
+**The app icon** follows Apple's macOS grid: on a 1024 canvas the artwork sits
+inside an 824×824 area and the remaining margin is transparent — that is the
+only way to match the optical size of its neighbours in the Dock. The corners
+are drawn as a superellipse (squircle), not a rounded rectangle.
 
-**Maskot** Okta, mor bir ahtapot; sekiz kolu sekiz alıştırma tipine denk gelir.
-Çizim [Twemoji](https://github.com/jdecked/twemoji)'nin ahtapot emojisinden
-(U+1F419) uyarlandı, **CC-BY 4.0** ile lisanslı. Atıf uygulamanın profil
-ekranında görünür. Yapılan değişiklikler: arka ve orta kollar tek yoldan
-ayrılıp bağımsız canlandırıldı, ruh haline göre göz ve ağız eklendi.
+**The mascot** is Okta, a purple octopus; its eight arms map to the eight
+exercise types. The artwork is adapted from the octopus emoji (U+1F419) in
+[Twemoji](https://github.com/jdecked/twemoji), licensed **CC-BY 4.0**. The
+attribution appears on the app's profile screen. What changed: the back and
+middle arms were split off into separate paths and animated independently, and
+eyes and a mouth were added to carry the mascot's mood.

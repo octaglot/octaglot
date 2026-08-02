@@ -10,16 +10,16 @@ import { LEGENDARY_KINDS } from './legendaryKinds';
 import { shuffle, pick } from './rand';
 import type { Exercise, Sentence, Word } from './types';
 
-/* Rastgelelik `rand.ts`'e taşındı; buradan yeniden dışa veriliyor çünkü
-   Exercises.tsx `shuffle`'ı bu dosyadan alıyor. */
+/* Randomness moved to `rand.ts`; it is re-exported here because Exercises.tsx
+   imports `shuffle` from this file. */
 export { shuffle, pick };
 
-/** "Don't go!" → ["Don't", 'go!'] — kelime bankası için cümleyi böler. */
+/** "Don't go!" -> ["Don't", 'go!'] - splits a sentence for the word bank. */
 export function splitWords(en: string): string[] {
   return en.trim().split(/\s+/);
 }
 
-/** Karşılaştırma için noktalama ve büyük/küçük harf farkını yok sayar. */
+/** Drops punctuation and case differences so answers can be compared. */
 export function normalize(s: string): string {
   return s
     .toLocaleLowerCase('tr')
@@ -28,7 +28,7 @@ export function normalize(s: string): string {
     .trim();
 }
 
-/** Kullanıcının Türkçe cevabı kabul edilir mi? Kelimenin alt anlamları da geçerli. */
+/** Is the user's Turkish answer acceptable? Secondary senses count too. */
 export function checkTurkish(input: string, word: Word): boolean {
   const given = normalize(input);
   if (!given) return false;
@@ -39,8 +39,8 @@ export function checkTurkish(input: string, word: Word): boolean {
   return accepted.some((a) => a === given);
 }
 
-/* Kelime bankasındaki çeldiriciler cümlede geçmeyen ama aynı seviyeden
-   kelimeler olmalı — rastgele harf yığını değil. */
+/* Distractors in the word bank must be words of the same level that do not
+   appear in the sentence - not a random pile of letters. */
 function bankFor(sentence: Sentence, pool: string[]): string[] {
   const answer = splitWords(sentence.en);
   const lower = new Set(answer.map((w) => normalize(w)));
@@ -54,9 +54,10 @@ export type LessonPlan = {
 };
 
 /**
- * Bir dersin alıştırma listesini kurar.
- * Sıralama bilinçli: önce kelime tanıtımı (kart + çoktan seçmeli), sonra
- * tanıma (eşleştirme), en sonda üretim (çeviri, dinleme, sıralama).
+ * Builds the exercise list for one lesson.
+ * The order is deliberate: first introduce the words (flashcard + multiple
+ * choice), then recognition (matching), and production last (translation,
+ * listening, ordering).
  */
 export async function buildLesson(lessonId: number, unitId: number, count = 16): Promise<LessonPlan> {
   const [words, sentences] = await Promise.all([getLessonWords(lessonId), getLessonSentences(lessonId)]);
@@ -67,20 +68,20 @@ export async function buildLesson(lessonId: number, unitId: number, count = 16):
 
   const ex: Exercise[] = [];
 
-  // 1. Yeni kelimeleri tanıt — her biri için bir kart.
+  // 1. Introduce the new words - one card each.
   for (const w of shuffle(words).slice(0, 4)) {
     ex.push({ kind: 'flashcard', word: w });
   }
 
-  // 2. Çoktan seçmeli tanıma
+  // 2. Multiple choice recognition
   for (const w of shuffle(words).slice(0, 3)) {
     const options = shuffle([w, ...shuffle(distractors).slice(0, 3)]);
     ex.push({ kind: 'choice', word: w, options, ask: Math.random() < 0.5 ? 'en2tr' : 'tr2en' });
   }
 
-  // 3. Eşleştirme — beş çiftlik tek ekran.
-  // Bir derse ortalama 4-5 kelime düşüyor; eksik kalırsa aynı üniteden daha
-  // önce öğrenilmiş kelimelerle tamamlanıyor (tekrar etkisi de oluyor).
+  // 3. Matching - a single screen of five pairs.
+  // A lesson averages 4-5 words; if that falls short, the set is filled with
+  // words already learned from the same unit (which doubles as review).
   const matchPairs = [...words];
   for (const d of distractors) {
     if (matchPairs.length >= 5) break;
@@ -90,7 +91,7 @@ export async function buildLesson(lessonId: number, unitId: number, count = 16):
     ex.push({ kind: 'match', pairs: shuffle(matchPairs).slice(0, 5) });
   }
 
-  // 4. Cümle çalışmaları
+  // 4. Sentence work
   const shortSentences = sentences.filter((s) => s.n >= 2 && s.n <= 7);
   const usable = shortSentences.length >= 6 ? shortSentences : sentences;
 
@@ -106,7 +107,7 @@ export async function buildLesson(lessonId: number, unitId: number, count = 16):
     ex.push({ kind: 'listen', sentence: s, bank: bankFor(s, tokenPool), answer: splitWords(s.en) });
   }
 
-  // 5. Boşluk doldurma — cümledeki hedef kelimelerden biri gizlenir.
+  // 5. Fill in the blank - one of the target words is hidden.
   const lessonForms = new Set(words.map((w) => w.en));
   for (const s of shuffle(usable)) {
     const tokens = splitWords(s.en);
@@ -118,18 +119,18 @@ export async function buildLesson(lessonId: number, unitId: number, count = 16):
     if (ex.filter((e) => e.kind === 'blank').length >= 2) break;
   }
 
-  // 6. Cümle sıralama
+  // 6. Sentence ordering
   for (const s of shuffle(usable.filter((x) => x.n >= 3)).slice(0, 2)) {
     ex.push({ kind: 'order', sentence: s });
   }
 
-  // Kartlar hep başta kalsın, gerisi karışsın — ders her seferinde farklı olsun.
+  // Keep the cards up front and shuffle the rest, so the lesson differs each run.
   const cards = ex.filter((e) => e.kind === 'flashcard');
   const rest = shuffle(ex.filter((e) => e.kind !== 'flashcard'));
   return { exercises: [...cards, ...rest].slice(0, count), words };
 }
 
-/** Tekrar dersi: vadesi gelmiş kelimelerden karma alıştırma kurar. */
+/** Review lesson: builds a mixed exercise set from words that are due. */
 export async function buildReview(wordIds: number[], count = 12): Promise<LessonPlan> {
   const words = await getWordsByIds(wordIds);
   if (words.length < 4) return { exercises: [], words };
@@ -148,9 +149,10 @@ export async function buildReview(wordIds: number[], count = 12): Promise<Lesson
 }
 
 /**
- * Efsane turu: ünitenin tamamından, yalnızca üretim gerektiren alıştırmalar.
- * `buildLesson`'dan ayrı duruyor çünkü havuzu ders değil ünite, sırası da
- * "önce tanıt sonra sına" değil — efsanede tanıtma aşaması yok.
+ * Legendary round: production-only exercises drawn from the whole unit.
+ * It stands apart from `buildLesson` because its pool is the unit rather than
+ * a lesson, and its order is not "introduce then test" - legendary has no
+ * introduction stage.
  */
 export async function buildLegendary(unitId: number, count = 16): Promise<LessonPlan> {
   const [words, sentences] = await Promise.all([getUnitWords(unitId), getUnitSentences(unitId)]);
@@ -185,7 +187,7 @@ export async function buildLegendary(unitId: number, count = 16): Promise<Lesson
     if (ex.filter((e) => e.kind === 'blank').length >= 3) break;
   }
 
-  // Güvenlik ağı: izinli olmayan bir tip sızarsa burada elenir.
+  // Safety net: any type that is not allowed gets filtered out here.
   const allowed = new Set<string>(LEGENDARY_KINDS);
   return { exercises: shuffle(ex.filter((e) => allowed.has(e.kind))).slice(0, count), words };
 }

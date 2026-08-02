@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// Cıvıl içerik derleyicisi.
-// Tatoeba cümle çiftleri + frekans listesi + FreeDict sözlüğünden kademeli
-// (i+1) bir müfredat üretip data/content.db dosyasına yazar.
+// Octaglot content builder.
+// Produces a staged (i+1) curriculum from Tatoeba sentence pairs, a frequency
+// list and the FreeDict dictionary, and writes it to data/content.db.
 //
-// Kademelendirme kuralı: bir cümle ancak TÜM kelimeleri o ana kadar öğretilmiş
-// kelime havuzunda ise derse girer. Böylece zorluk kendiliğinden artar.
+// The staging rule: a sentence enters a lesson only if ALL of its words are in
+// the pool taught so far. Difficulty therefore rises on its own.
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
@@ -20,18 +20,18 @@ const OUT_DB = join(OUT_DIR, 'content.db');
 const CANDIDATES = join(ROOT, 'data', 'candidates.json');
 const GLOSSES = join(ROOT, 'data', 'glosses.json');
 
-// İki aşamalı çalışır:
+// It runs in two stages:
 //   --candidates → aday kelime listesini yazar (fetch-glosses.mjs bunu okur)
-//   (bayraksız)  → glosses.json'u kullanarak content.db üretir
+//   (no flag)    -> builds content.db from glosses.json
 const STAGE_CANDIDATES = process.argv.includes('--candidates');
 
 const log = (...a) => console.log('·', ...a);
 
 /* ------------------------------------------------------------------ */
-/* Dilbilgisi yardımcıları                                            */
+/* Morphology helpers                                                  */
 /* ------------------------------------------------------------------ */
 
-// Çekim eklerini soyup köke inmeyi dener. Basit ama Tatoeba için yeterli.
+// Attempts to strip inflections down to the stem. Crude, but enough for Tatoeba.
 function* stemCandidates(w) {
   yield w;
   if (w.includes("'")) yield w.split("'")[0];
@@ -53,8 +53,8 @@ function* stemCandidates(w) {
   if (w.endsWith('ly')) yield w.slice(0, -2);
 }
 
-// Her zaman "bilinen" sayılan işlev kelimeleri ve Tatoeba'nın standart isimleri.
-// Bunlar ünitelerde ayrıca öğretilir ama cümle filtresini kilitlememeleri gerekir.
+// Function words always treated as "known", plus Tatoeba's stock names.
+// These are still taught in units, but they must not lock up the sentence filter.
 const BASE = new Set(`
 a an the and or but if so because that this these those there here
 i you he she it we they me him her us them my your his its our their mine yours
@@ -87,15 +87,15 @@ const rank = new Map();
 log(`  ${rank.size} kelime sıralandı`);
 
 /* ------------------------------------------------------------------ */
-/* 2. FreeDict eng-tur sözlüğü (TEI)                                   */
+/* 2. FreeDict eng-tur dictionary (TEI)                                */
 /* ------------------------------------------------------------------ */
 
 log('sözlük ayrıştırılıyor…');
 
-// FreeDict girdileri tek bir <quote> içine deyimleri de tıkıştırıyor:
-//   "elma. apple blossom elma baharı. apple butter elma marmelâdı. …"
-// İlk cümleden sonrası deyim listesidir; kesip atıyoruz.
-// "akçakavak (bot.) Populus alba." → "akçakavak"
+// FreeDict entries cram idioms into a single <quote>:
+//   "elma. apple blossom elma baharı. apple butter elma marmelâdı. ..."
+// Everything after the first sentence is an idiom list; we cut it off.
+// "akçakavak (bot.) Populus alba." -> "akçakavak"
 function cleanGloss(raw) {
   let s = raw
     .split(/\.\s/)[0]
@@ -108,7 +108,7 @@ function cleanGloss(raw) {
   const good = [];
   for (let p of parts) {
     p = p.replace(/\.$/, '').trim();
-    // Latince binom adlarını ve tuhaf uzun açıklamaları at
+    // Drop Latin binomials and oddly long explanations
     if (/^[A-ZÇĞİÖŞÜ][a-zçğıöşü]+ [a-zçğıöşü]+$/.test(p)) continue;
     if (p.length < 2 || p.length > 28) continue;
     if (/[0-9<>=]/.test(p)) continue;
@@ -120,7 +120,7 @@ function cleanGloss(raw) {
 
 const dict = new Map(); // en → { tr, pos }
 
-// Birincil kaynak: Wiktionary (kaikki.org) çeviri bölümleri — küratörlü ve temiz.
+// Primary source: Wiktionary (kaikki.org) translation sections - curated and clean.
 if (!STAGE_CANDIDATES && existsSync(GLOSSES)) {
   const g = JSON.parse(readFileSync(GLOSSES, 'utf8'));
   for (const [en, v] of Object.entries(g)) {
@@ -129,7 +129,7 @@ if (!STAGE_CANDIDATES && existsSync(GLOSSES)) {
   log(`  ${dict.size} Wiktionary girdisi`);
 }
 
-// Yedek kaynak: FreeDict eng-tur — Wiktionary'de karşılığı olmayanlar için.
+// Fallback source: FreeDict eng-tur, for words Wiktionary has no gloss for.
 {
   const tei = readFileSync(join(RAW, 'eng-tur', 'eng-tur.tei'), 'utf8');
   const entryRe = /<entry>([\s\S]*?)<\/entry>/g;
@@ -159,7 +159,7 @@ if (!STAGE_CANDIDATES && existsSync(GLOSSES)) {
 log(`  ${dict.size} sözlük girdisi`);
 
 /* ------------------------------------------------------------------ */
-/* 3. Tatoeba cümle çiftleri                                           */
+/* 3. Tatoeba sentence pairs                                           */
 /* ------------------------------------------------------------------ */
 
 log('bağlantılar okunuyor…');
@@ -210,7 +210,7 @@ const engText = readSentences('eng_sentences.tsv', engIds);
 log(`  ${engText.size}`);
 
 /* ------------------------------------------------------------------ */
-/* 4. Çiftleri temizle ve tokenize et                                  */
+/* 4. Clean and tokenize the pairs                                     */
 /* ------------------------------------------------------------------ */
 
 const APOS = /[’ʼ]/g;
@@ -255,36 +255,37 @@ trToEn.clear();
 log(`  ${pairs.length} kullanılabilir çift`);
 
 /* ------------------------------------------------------------------ */
-/* 5. Kelime dağarcığını ünitelere böl                                 */
+/* 5. Split the vocabulary into units                                  */
 /* ------------------------------------------------------------------ */
 
 log('kelime dağarcığı kuruluyor…');
 
-// Cümlelerde gerçekten geçen kelimeleri say — sözlükte olup korpüste
-// olmayan kelimeleri öğretmenin anlamı yok.
+// Count the words that actually occur in the sentences - there is no point
+// teaching words that are in the dictionary but not in the corpus.
 const corpusCount = new Map();
 for (const p of pairs) {
   for (const t of p.tokens) corpusCount.set(t, (corpusCount.get(t) || 0) + 1);
 }
 
-// Elle yazılmış düzeltmeler her iki sözlüğün de önüne geçer.
+// Hand-written overrides take precedence over both dictionaries.
 for (const [en, tr] of Object.entries(OVERRIDES)) {
   dict.set(en, { tr, alts: dict.get(en)?.alts || [], pos: dict.get(en)?.pos || '' });
 }
 
-// Otomatik doldurmaya uygun mu? Çekirdek kelimeler bu süzgeçten muaftır —
-// onları müfredat bilerek seçmiştir.
+// Is it suitable for automatic filling? Core seed words are exempt from this
+// filter - the curriculum chose them deliberately.
 function usableForFill(w) {
   if (BLOCKLIST.has(w) || INFLECTED.has(w)) return false;
   const d = dict.get(w);
   if (!d) return false;
   if (Object.hasOwn(OVERRIDES, w)) return true;
-  // FreeDict yedeğinden gelen çok anlamlı blobları ele.
+  // Filter out the multi-sense blobs coming from the FreeDict fallback.
   if (/[;()[\]]/.test(d.tr)) return false;
   if (d.tr.length > 24) return false;
-  // "went → go", "children → child" gibi İngilizceye yönlendirmeleri ele.
-  // Karşılığın kendisi sık bir İngilizce kelimeyse çeviri değildir.
-  // (Not: "elma", "su" gibi ASCII Türkçe karşılıkları elemeyen tek güvenli test.)
+  // Filter out redirects back into English such as "went -> go", "children ->
+  // child". If the gloss itself is a frequent English word, it is not a
+  // translation. (Note: this is the only safe test that does not also discard
+  // ASCII Turkish glosses like "elma" or "su".)
   if (rank.has(d.tr)) return false;
   return true;
 }
@@ -293,16 +294,16 @@ const used = new Set();
 const cefrOf = (unitIdx) =>
   CEFR_BANDS.find((b) => unitIdx >= b.units[0] && unitIdx <= b.units[1])?.level || 'B1';
 
-// Frekans sırasına göre, sözlükte karşılığı olan ve korpüste yeterince geçen
-// kelimeleri sırayla veren bir üretici.
+// A generator that yields words in frequency order, keeping those that have a
+// gloss and occur often enough in the corpus.
 const freqOrdered = [...rank.entries()]
   .sort((a, b) => a[1] - b[1])
   .map(([w]) => w)
   .filter((w) => (corpusCount.get(w) || 0) >= 25 && (STAGE_CANDIDATES || dict.has(w)));
 
 if (STAGE_CANDIDATES) {
-  // Gereğinden fazla aday topla: bir kısmının Wiktionary'de Türkçe karşılığı
-  // çıkmayacak, onları eleyip kalanla ilerleyeceğiz.
+  // Collect more candidates than needed: some will have no Turkish gloss on
+  // Wiktionary, so we drop those and carry on with the rest.
   const seeds = UNITS.flatMap((u) => u.seeds);
   const list = [...new Set([...seeds, ...freqOrdered.slice(0, 2400)])];
   mkdirSync(dirname(CANDIDATES), { recursive: true });
@@ -356,7 +357,7 @@ for (let u = 0; u < UNITS.length; u++) {
 log(`  ${unitPlans.reduce((s, u) => s + u.words.length, 0)} kelime, ${unitPlans.length} ünite`);
 
 /* ------------------------------------------------------------------ */
-/* 6. Cümleleri derslere dağıt                                         */
+/* 6. Distribute the sentences across lessons                          */
 /* ------------------------------------------------------------------ */
 
 log('cümleler derslere dağıtılıyor…');
@@ -364,7 +365,7 @@ log('cümleler derslere dağıtılıyor…');
 const known = new Set(BASE);
 const takenSentences = new Set();
 
-// Bir token biliniyor mu? Çekim eklerini soyarak dener.
+// Is a token known? Tries again after stripping inflections.
 function isKnown(tok) {
   for (const c of stemCandidates(tok)) if (known.has(c)) return true;
   return false;
@@ -380,7 +381,7 @@ function hitsTargets(p, targets) {
   return false;
 }
 
-// Kısa cümleler önce gelsin — erken üniteler daha kolay olsun.
+// Shorter sentences come first, so the early units stay easier.
 pairs.sort((a, b) => a.n - b.n);
 
 const lessons = [];
@@ -435,7 +436,7 @@ if (thin.length) {
 }
 
 /* ------------------------------------------------------------------ */
-/* 7. Veritabanını yaz                                                 */
+/* 7. Write the database                                               */
 /* ------------------------------------------------------------------ */
 
 log('content.db yazılıyor…');

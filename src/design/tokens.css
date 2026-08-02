@@ -1,68 +1,69 @@
-/* Octaglot tasarım belirteçleri.
+/* Octaglot design tokens.
 
-   Mekanik (3B basma butonlar, yuvarlak ağır tipografi) Duolingo'dan alındı,
-   renk paleti bilinçli olarak alınmadı.
+   The mechanics (3D push buttons, round heavy typography) were taken from
+   Duolingo; the color palette deliberately was not.
 
-   İki kural:
+   Two rules:
 
-   1. Belirteç adları renk değil ROL bildirir. Bileşenlerde hex yazılmaz; bir
-      tonu değiştirmek için yalnızca bu dosya düzenlenir.
+   1. Token names state a ROLE, not a color. Components never write hex; to
+      change a shade you edit only this file.
 
-   2. Mor yalnızca marka yüzeylerinde durur; NÖTRLER NEREDEYSE GRİDİR. Zemin ve
-      kenarlıklar da mora boyanınca pencerenin tamamı renkli bir sis gibi
-      görünüp gözü yoruyordu — renk, ilgi çekmesi gereken yerde kalmalı.
+   2. Purple appears on brand surfaces only; THE NEUTRALS ARE ALMOST GREY.
+      Tinting the background and borders purple as well made the whole window
+      look like colored fog and tired the eye - color has to stay where it is
+      meant to draw attention.
 
-   Markanın tonu 278°; uygulama ikonundaki gradyanla (#a843d2 → #4c087b) aynı
-   aileden olsun diye seçildi.
+   The brand hue is 278deg, chosen to stay in the same family as the gradient in
+   the app icon (#a843d2 -> #4c087b).
 
-   Karanlık tema aşağıda `:root[data-theme='dark']` altında; yalnızca değişmesi
-   gereken belirteçler ezilir. */
+   The dark theme is below under `:root[data-theme='dark']`; only the tokens
+   that have to change are overridden. */
 
 :root {
   color-scheme: light;
 
-  /* Marka */
-  --brand: #9b60be; /* kenarlık, anahat, çıplak işaret */
-  --brand-strong: #7b3ba0; /* beyaz metin taşıyan dolgular */
-  --brand-dark: #5f2c7d; /* buton gölgesi */
+  /* Brand */
+  --brand: #9b60be; /* borders, outlines, the bare mark */
+  --brand-strong: #7b3ba0; /* fills that carry white text */
+  --brand-dark: #5f2c7d; /* button shadow */
   --brand-light: #bf9bd4;
-  --brand-wash: #f4ecf8; /* seçili şık zemini */
-  --brand-text: #5f2c7d; /* zemin üstünde okunur marka metni */
+  --brand-wash: #f4ecf8; /* background of a selected option */
+  --brand-text: #5f2c7d; /* brand text legible on the background */
 
-  /* Vurgu — gün serisi, kombo */
+  /* Accent - daily streak, combo */
   --accent: #ff6b4a;
   --accent-dark: #e04e2e;
 
-  /* Doğru cevap — markanın ikincil moru (bkz. karanlık tema notu) */
+  /* Correct answer - the brand's secondary purple (see the dark theme note) */
   --success: #7039d0;
   --success-dark: #4d2593;
   --success-wash: #ece2fb;
   --success-text: #4d2593;
 
-  /* Yanlış cevap, can */
+  /* Wrong answer, hearts */
   --danger: #ff4767;
   --danger-dark: #c81339;
   --danger-wash: #fdeef0;
   --danger-text: #c81339;
 
-  /* XP, efsane */
+  /* XP, legendary */
   --gold: #ffb43d;
   --gold-dark: #cf8100;
   --gold-wash: #fff4de;
   --gold-text: #8a5a00;
 
-  /* Elmas, ikincil buton */
+  /* Gems, secondary button */
   --sky: #35d0ff;
   --sky-dark: #0089b8;
   --sky-wash: #dff6ff;
   --sky-text: #0089b8;
 
-  /* Ders haritası çeşitlemesi */
+  /* Variation on the lesson map */
   --lilac: #c78be0;
   --lilac-dark: #9c5cc4;
 
-  /* Geniş renkli yüzeyler (ünite şeritleri). Üstlerinde beyaz metin var;
-     hepsi beyazla en az 4.5:1 kontrast verir. */
+  /* Broad colored surfaces (unit banners). They carry white text, so each one
+     measures at least 4.5:1 against white. */
   --deep-brand: #6e2f93;
   --deep-ocean: #0b7fa8;
   --deep-lilac: #8c3bb5;
@@ -70,29 +71,30 @@
   --deep-coral: #c23a20;
   --deep-rose: #c81339;
 
-  /* Nötrler — mor değil, nötr gri (bkz. yukarıdaki 2. kural) */
-  --ink: #272430; /* ana metin */
-  --ink-2: #5f5a6b; /* ikincil metin */
-  --muted: #a5a1b0; /* pasif */
-  --line: #e7e5ec; /* kenarlık */
-  --bg: #f6f5f8; /* zemin */
+  /* Neutrals - neutral grey, not purple (see rule 2 above) */
+  --ink: #272430; /* primary text */
+  --ink-2: #5f5a6b; /* secondary text */
+  --muted: #a5a1b0; /* inactive */
+  --line: #e7e5ec; /* border */
+  --bg: #f6f5f8; /* background */
   --surface: #ffffff;
 
-  /* Pencere başlık çubuğu */
+  /* Window title bar */
   --titlebar: #241f2e;
   --titlebar-text: #ece9f2;
 
-  /* Temadan bağımsız sabitler — renkli dolgu üstündeki metin iki temada da
-     aynı kalmalı, yoksa karanlıkta mor butonun yazısı da koyulaşıyor. */
+  /* Theme-independent constants - text on a colored fill has to stay the same
+     in both themes, otherwise the label on a purple button darkens in dark
+     mode too. */
   --on-color: #ffffff;
   --on-gold: #241f2e;
 
-  /* Devre dışı buton. Eskiden --line/--muted idi ve koyu temada 2.5:1'e
-     düşüp okunmaz oluyordu; artık ikisinde de 3.5:1 üstünde. */
+  /* Disabled button. It used to be --line/--muted, which dropped to 2.5:1 in
+     dark mode and became unreadable; now it is above 3.5:1 in both. */
   --disabled-bg: #e9e7ee;
   --disabled-text: #7d7789;
 
-  /* Tipografi */
+  /* Typography */
   --font: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --w-black: 900;
   --w-bold: 800;
@@ -106,7 +108,7 @@
   --t-small: 0.875rem;
   --t-tiny: 0.75rem;
 
-  /* Ölçü */
+  /* Metrics */
   --r-sm: 8px;
   --r-md: 12px;
   --r-lg: 16px;
@@ -143,7 +145,7 @@
   --gold-wash: #33270f;
   --gold-text: #ffc86b;
 
-  /* Ünite şeritleri karanlıkta bir tık açılır, yoksa zeminle birbirine girer */
+  /* Unit banners lighten a notch in the dark so they do not merge with the background */
   --deep-brand: #8a45b0;
   --deep-ocean: #10708f;
   --deep-lilac: #a250c9;
@@ -151,10 +153,11 @@
   --deep-coral: #cf4526;
   --deep-rose: #d1284a;
 
-  /* Doğru cevap markanın ikincil moru. Yeşil de kehribar da bu palette
-     yabancı duruyordu. Tonu 262° — ana markanın 278°'sinden yeterince ayrışıp
-     hâlâ aynı aileden kalıyor. Seçili şıkla karışmıyor çünkü seçim durumu
-     cevap kontrol edilince zaten kayboluyor. */
+  /* Correct answer uses the brand's secondary purple. Both green and amber
+     looked foreign in this palette. Its hue is 262deg - far enough from the
+     main brand's 278deg to read as distinct while staying in the same family.
+     It does not get confused with a selected option because the selected state
+     disappears the moment the answer is checked. */
   --success: #a674fb;
   --danger: #f85149;
 

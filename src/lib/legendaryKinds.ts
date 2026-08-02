@@ -1,8 +1,9 @@
 import type { ExerciseKind } from './types';
 
-/* Ayrı dosya: `generate.ts` `db.ts` üzerinden Tauri eklentisini çekiyor ve Node
-   testinde yüklenmiyor; bu sabit listenin ondan bağımsız durması gerekiyor.
+/* Its own file: `generate.ts` pulls in the Tauri plugin through `db.ts` and
+   will not load under a Node test, so this constant list has to stand apart.
 
-   Efsanenin ayırt edici yanı üretim zorunluluğu: kelime bankası, çoktan
-   seçmeli, eşleştirme ve kelime kartı tanımayla çözülebildiği için dışarıda. */
+   What sets legendary apart is that it demands production: the word bank,
+   multiple choice, matching and flashcards are left out because they can be
+   solved by recognition. */
 export const LEGENDARY_KINDS: ExerciseKind[] = ['typeTr', 'listen', 'blank', 'order'];

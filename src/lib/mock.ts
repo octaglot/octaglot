@@ -1,9 +1,9 @@
-/* Tarayıcıda geliştirme desteği.
-   Uygulama normalde Tauri penceresinde çalışır ve SQLite'a oradan erişir.
-   Sadece tasarımı hızlıca gözden geçirmek için `npm run dev` ile tarayıcıda
-   açıldığında Tauri API'leri yoktur; bu dosya o durumda gerçek içerikten
-   üretilmiş bir fikstürle aynı sorgu arayüzünü taklit eder.
-   Üretim paketinde bu yol hiç çalışmaz. */
+/* Browser development support.
+   The app normally runs inside a Tauri window and reaches SQLite from there.
+   When it is opened in a browser with `npm run dev` just to review the design,
+   the Tauri APIs are absent; in that case this file mimics the same query
+   interface over a fixture generated from the real content.
+   This path never runs in a production build. */
 
 import fixture from './fixture.json';
 import type { Lesson, Sentence, Unit, Word } from './types';
@@ -17,7 +17,7 @@ const data = fixture as unknown as {
   sentences: Sentence[];
 };
 
-// Tarayıcıda ilerleme sadece bellekte tutulur.
+// In the browser, progress is held in memory only.
 const memory = {
   profile: {
     name: 'Öğrenci',

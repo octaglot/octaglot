@@ -1,12 +1,13 @@
-/* Okta'nın geometrisi ve zarfı.
+/* Okta's geometry and envelope.
  *
- * Ayrı dosya olmasının sebebi: bu değerler testten doğrulanabilmeli, ama
- * `Mascot.tsx` React ve framer-motion çekiyor. Burada React yok — saf sayı.
+ * This lives in its own file because the values have to be verifiable from a
+ * test, while `Mascot.tsx` pulls in React and framer-motion. There is no React
+ * here - pure numbers.
  *
- * Buradaki asıl iş `envelope()`: maskotun BÜTÜN ruh hâllerinde ve animasyonun
- * uç karelerinde kapladığı en küçük daire. Yuvarlak çerçevelere sığdırma bu
- * daireye göre yapılıyor; `mascot.test.ts` de VIEWBOX'ın bu daireyi paylı
- * biçimde çevrelediğini bekliyor. */
+ * The real work is `envelope()`: the smallest circle the mascot occupies across
+ * ALL of its moods and the extreme frames of the animation. Fitting into round
+ * frames is done against that circle, and `mascot.test.ts` expects VIEWBOX to
+ * enclose it with margin to spare. */
 
 export const ARM_BACK_L = 'M10 12c3 5 0 10.692-3 9.692s-4 2-1 3 9.465-.465 13-4c1-1 2-1 2-1L10 12z';
 export const ARM_BACK_R = 'M26 12c-3 5 0 10.692 3 9.692s4 2 1 3-9.465-.465-13-4c-1-1-2-1-2-1L26 12z';
@@ -15,7 +16,7 @@ export const ARM_MID_L = 'M5.812 16c3 5 0 10.692-3 9.692s-4 2-1 3 9.465-.465 13-
 export const BODY =
   'M33.188 31.375c-2.729.91-6.425-5.626-4.812-10.578C30.022 17.554 31 13.94 31 11c0-7.18-5.82-11-13-11S5 3.82 5 11c0 2.94.978 6.554 2.624 9.797 1.613 4.952-2.083 11.488-4.812 10.578-3-1-4 3-1 4s8.31-.627 12-4c2.189-2 4.189-2 4.189-2s2 0 4.188 2c3.69 3.373 9 5 12 4s1.999-5-1.001-4z';
 
-/** Kolların döndüğü kök noktalar (kolun mantoya girdiği yer). */
+/** Root points the arms rotate about (where an arm meets the mantle). */
 export const ARM_PIVOTS = {
   ARM_BACK_L: [12, 13],
   ARM_BACK_R: [24, 13],
@@ -23,12 +24,13 @@ export const ARM_PIVOTS = {
   ARM_MID_R: [28.2, 17],
 } as const;
 
-/** Gövdenin dönme/ölçek merkezi. */
+/** Center the body rotates and scales about. */
 export const BODY_PIVOT: [number, number] = [18, 30];
 
-/* Animasyonun uç değerleri — `Mascot.tsx`'teki bütün ruh hâllerinin en geniş
-   hâli. Bir ruh hâline daha geniş bir hareket eklenirse buraya da yazılmalı;
-   yoksa zarf küçük kalır ve maskot çerçeveyi taşar (bir kez oldu). */
+/* Extremes of the animation - the widest reach across every mood in
+   `Mascot.tsx`. If a mood gains a wider movement it must be recorded here too;
+   otherwise the envelope stays too small and the mascot overflows its frame
+   (which happened once). */
 export const EXTREMES = {
   armRotate: [-14, 0, 14],
   bodyRotate: [-7, 0, 7],
@@ -37,13 +39,13 @@ export const EXTREMES = {
   bodyScaleY: [0.94, 1, 1.06],
 } as const;
 
-/* ---------------- yol örnekleme ---------------- */
+/* ---------------- path sampling ---------------- */
 
 type Pt = [number, number];
 
 const tokenize = (d: string) => d.match(/[MmLlCcSsZz]|-?\d*\.?\d+/g) ?? [];
 
-/** SVG yolunu noktalara açar. Yalnız bu çizimde geçen komutları destekler. */
+/** Expands an SVG path into points. Supports only the commands this artwork uses. */
 export function samplePath(d: string, perCurve = 16): Pt[] {
   const t = tokenize(d);
   const pts: Pt[] = [];
@@ -88,7 +90,7 @@ const rotate = ([x, y]: Pt, [cx, cy]: readonly [number, number], deg: number): P
   return [cx + dx * Math.cos(a) - dy * Math.sin(a), cy + dx * Math.sin(a) + dy * Math.cos(a)];
 };
 
-/** Animasyonun bütün uç bileşimlerinde çizimin ulaştığı noktalar. */
+/** Points the artwork reaches across every extreme combination of the animation. */
 export function extremePoints(): Pt[] {
   const parts: [string, readonly [number, number] | null][] = [
     [ARM_BACK_L, ARM_PIVOTS.ARM_BACK_L],
@@ -118,7 +120,7 @@ export function extremePoints(): Pt[] {
   return out;
 }
 
-/** Noktaları çevreleyen (yaklaşık) en küçük daire — kaba aramadan inceye. */
+/** Approximate smallest circle enclosing the points - coarse search to fine. */
 export function envelope(): { cx: number; cy: number; r: number } {
   const pts = extremePoints();
   const farthest = (cx: number, cy: number) => {
@@ -139,17 +141,17 @@ export function envelope(): { cx: number; cy: number; r: number } {
   return best;
 }
 
-/* ---------------- viewBox'lar ---------------- */
+/* ---------------- viewBoxes ---------------- */
 
-/** Zarfın çevresine bırakılan pay. Tam teğet boyutlandırma bir kez taşmaya
-    yol açtı: durgunken sığıyor, animasyon tepe yapınca kenarı kesiyordu. */
+/** Margin left around the envelope. Sizing exactly tangent caused an overflow
+    once: it fit at rest and cut the edge when the animation peaked. */
 export const CIRCLE_MARGIN = 0.08;
 
 export const VIEWBOX = {
-  /* Serbest duran kullanım: çizim kutuyu doldurur. */
+  /* Free-standing use: the artwork fills the box. */
   box: '0 0 36 36',
-  /* Yuvarlak çerçeve içi: kutunun İÇ TEĞET dairesi zarfı paylı çevreler,
-     böylece `size` doğrudan çerçevenin iç çapı verilebilir.
-     envelope() → merkez (18.00, 18.82), yarıçap 26.69; %8 pay ile 28.82. */
+  /* Inside a round frame: the box's INSCRIBED circle encloses the envelope with
+     margin, so `size` can be given directly as the frame's inner diameter.
+     envelope() -> center (18.00, 18.82), radius 26.69; 28.82 with 8% margin. */
   circle: '-10.82 -10.00 57.64 57.64',
 } as const;

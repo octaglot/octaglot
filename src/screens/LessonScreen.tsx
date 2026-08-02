@@ -7,7 +7,7 @@ import { useGame, LEGENDARY_XP } from '../lib/store';
 import { sfx, speak } from '../lib/audio';
 import type { Exercise, LessonMode } from '../lib/types';
 
-/* Efsanede can yerine tura özel hata hakkı var. */
+/* Legendary replaces hearts with a per-round mistake allowance. */
 export const LEGENDARY_MISTAKES = 3;
 
 export type LessonResult = {
@@ -16,7 +16,7 @@ export type LessonResult = {
   correct: number;
   total: number;
   failed: boolean;
-  /* Turun en uzun doğru serisi — kombo görevi bunu ölçüyor. */
+  /* Longest correct streak of the round - what the combo quest measures. */
   bestCombo: number;
   mode: LessonMode;
 };
@@ -37,8 +37,9 @@ export function LessonScreen({ title, exercises, mode = 'normal', onQuit, onFini
   const [right, setRight] = useState(0);
   const [combo, setCombo] = useState(0);
   const [bestCombo, setBestCombo] = useState(0);
-  /* Efsanede can harcanmıyor; tura özel hata sayacı var. Can ekonomisi
-     derslere ait kalsın, efsane elmasla girilen ayrı bir bahis olsun. */
+  /* Legendary costs no hearts; it has its own mistake counter. The heart
+     economy stays with lessons, and legendary remains a separate wager entered
+     with gems. */
   const [mistakes, setMistakes] = useState(0);
   const legendary = mode === 'legendary';
   const continueRef = useRef<HTMLButtonElement>(null);
@@ -47,7 +48,7 @@ export function LessonScreen({ title, exercises, mode = 'normal', onQuit, onFini
   const total = exercises.length;
   const progress = (i / total) * 100;
 
-  // Eşleştirme kendi kendine tamamlanır; ayrıca "Kontrol et" gerekmez.
+  // Matching completes itself; it needs no separate check step.
   useEffect(() => {
     if (ex?.kind === 'match' && value === 'done' && verdict === 'none') check();
   }, [value]);
@@ -70,7 +71,7 @@ export function LessonScreen({ title, exercises, mode = 'normal', onQuit, onFini
     if (verdict !== 'none') return next();
     const ok = grade(ex, value);
 
-    // Kart bir sınav değil, tanıtımdır: puanı etkilemez.
+    // A card is an introduction, not a test: it does not affect the score.
     if (ex.kind === 'flashcard') {
       setVerdict('right');
       setRight((r) => r + 1);
@@ -103,8 +104,8 @@ export function LessonScreen({ title, exercises, mode = 'normal', onQuit, onFini
     setValue(null);
     if (i + 1 >= total) {
       const accuracy = right / total;
-      /* Efsanenin ödülü sabit; sonuç ekranı ile store'un aynı sayıyı
-         söylemesi için ikisi de bu sabitten okuyor. */
+      /* The legendary reward is fixed; both the result screen and the store read
+         it from this constant so they report the same number. */
       const xp = legendary ? LEGENDARY_XP : Math.round(10 + accuracy * 10);
       sfx.complete();
       onFinish({ xp, accuracy, correct: right, total, failed: false, bestCombo, mode });
@@ -113,7 +114,7 @@ export function LessonScreen({ title, exercises, mode = 'normal', onQuit, onFini
     }
   }
 
-  // Normal derste canlar biterse ders başarısız biter.
+  // In a normal lesson, running out of hearts fails it.
   useEffect(() => {
     if (legendary) return;
     if (profile.hearts <= 0 && verdict === 'wrong') {
@@ -124,7 +125,7 @@ export function LessonScreen({ title, exercises, mode = 'normal', onQuit, onFini
     }
   }, [profile.hearts, verdict]);
 
-  // Efsanede üç hata turu bitirir.
+  // In legendary, three mistakes end the round.
   useEffect(() => {
     if (!legendary) return;
     if (mistakes >= LEGENDARY_MISTAKES && verdict === 'wrong') {
@@ -148,24 +149,25 @@ export function LessonScreen({ title, exercises, mode = 'normal', onQuit, onFini
 
   if (!ex) return null;
 
-  /* Bant nötr zeminde durur; renk sinyalini üstteki çizgi, metin ve maskot
-     taşır. Koca renkli bir slab hem koyu temada çamurlaşıyordu hem de paletin
-     geri kalanıyla kavga ediyordu. Renkli dolgu artık yalnızca cevap
-     kutucuklarında (.tile--right / .tile--wrong). */
+  /* The band sits on a neutral background; the color signal is carried by the
+     rule above it, the text and the mascot. A large colored slab both turned
+     muddy in dark mode and fought with the rest of the palette. Colored fills
+     now live only on the answer tiles (.tile--right / .tile--wrong). */
   const bannerText = verdict === 'right' ? 'var(--success-text)' : 'var(--danger-text)';
   const bannerEdge = verdict === 'right' ? 'var(--success)' : 'var(--danger)';
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--surface)', overflow: 'hidden' }}>
-      {/* Üst bar. Soldaki 96px trafik ışıklarına ayrıldı — pencere başlığı gizli
-          olduğu için ✕ düğmesi tam onların üstüne geliyordu. Çubuğun kendisi
-          sürükleme alanı; içindeki düğmeler tıklanabilir kalıyor. */}
+      {/* Top bar. The 96px on the left is reserved for the traffic lights - with
+          the window title hidden, the close button landed right on top of them.
+          The bar itself is a drag region; the buttons inside stay clickable. */}
       <header
         data-tauri-drag-region="deep"
         style={{ display: 'flex', alignItems: 'center', gap: 20, padding: '38px 32px 18px 96px' }}
       >
-        {/* Çıkış ve can, düz metin/ikonken zeminde kayboluyordu; ikisi de
-            kendi zeminine oturunca her iki temada da net okunuyor. */}
+        {/* As plain text and icons, exit and hearts disappeared into the
+            background; giving each its own surface makes both legible in either
+            theme. */}
         <button
           onClick={onQuit}
           aria-label="Dersten çık"
@@ -190,8 +192,8 @@ export function LessonScreen({ title, exercises, mode = 'normal', onQuit, onFini
             style={{ height: '100%', background: 'var(--brand)', borderRadius: 'var(--r-pill)' }}
           />
         </div>
-        {/* Efsanede kalp yerine taç ve kalan hata hakkı: can harcanmadığı için
-            kalp göstermek yanlış bilgi olurdu. */}
+        {/* Legendary shows a crown and the mistakes left instead of hearts: since
+            no hearts are spent, showing them would be misinformation. */}
         <div
           style={{
             display: 'flex',
@@ -217,9 +219,9 @@ export function LessonScreen({ title, exercises, mode = 'normal', onQuit, onFini
         </div>
       </header>
 
-      {/* alıştırma */}
-      {/* `margin: auto` ile dikey ortalama — justify-content: center taşan
-          içeriğin üstünü kırpardı. */}
+      {/* exercise */}
+      {/* Vertically centered with `margin: auto` - justify-content: center would
+          clip the top of content that overflows. */}
       <div className="scroll" style={{ flex: 1, padding: '12px 32px 32px', display: 'flex' }}>
         <div style={{ maxWidth: 720, width: '100%', margin: 'auto' }}>
           <div style={{ color: 'var(--muted)', fontWeight: 800, fontSize: 'var(--t-tiny)', letterSpacing: 1, marginBottom: 20 }}>
@@ -242,16 +244,17 @@ export function LessonScreen({ title, exercises, mode = 'normal', onQuit, onFini
         </div>
       </div>
 
-      {/* Alt bant — sabit yükseklikli tek kutu.
+      {/* Bottom band - a single box of fixed height.
 
-          Önceden geri bildirim şeridi akışa giriyordu: göründüğü anda kendi
-          yüksekliğini kaplayıp üstteki alıştırmayı yukarı itiyor, aynı anda
-          translate ile aşağıdan kayıyordu. İkisi üst üste binince hem içerik
-          zıplıyor hem şerit pencerenin altından taşıyordu.
+          The feedback strip used to take part in the flow: the moment it
+          appeared it claimed its own height and pushed the exercise above it
+          upward, while sliding in from below with a translate at the same time.
+          With those two overlapping, the content jumped and the strip spilled
+          out of the bottom of the window.
 
-          Şimdi kutunun yüksekliği sabit; kontrol satırı hep yerinde duruyor ve
-          geri bildirim onun ÜSTÜNE kayıyor. overflow gizli olduğu için de
-          dışarı taşmıyor. */}
+          Now the box has a fixed height; the control row always stays put and
+          the feedback slides in ON TOP of it. With overflow hidden, nothing
+          spills out. */}
       <div style={{ position: 'relative', minHeight: 132, flexShrink: 0, overflow: 'hidden' }}>
         <div
           style={{
@@ -276,13 +279,14 @@ export function LessonScreen({ title, exercises, mode = 'normal', onQuit, onFini
               initial={{ y: '100%', opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: '100%', opacity: 0 }}
-              /* Yay sertti, bant "pat" diye oturuyordu. Sona doğru yavaşlayan
-                 uzun bir eğri (easeOutQuint) yumuşak bir kayma veriyor. */
+              /* The spring was stiff and the band landed with a thud. A long
+                 curve that decelerates toward the end (easeOutQuint) gives a
+                 soft slide instead. */
               transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
-              /* Odak, bant yerine oturduktan SONRA veriliyor. autoFocus ile
-                 düğmeye daha o ekranın altındayken odaklanılıyor, tarayıcı da
-                 onu görünür kılmak için üstteki kaydırılabilir alanı zıplatıyordu
-                 — animasyonu bozan şey buydu. preventScroll ikinci güvence. */
+              /* Focus is given AFTER the band has settled. With autoFocus the
+                 button was focused while still below the viewport, and the
+                 browser jumped the scrollable area above to reveal it - that was
+                 what broke the animation. preventScroll is the second safeguard. */
               onAnimationComplete={() => continueRef.current?.focus({ preventScroll: true })}
               style={{
                 position: 'absolute',

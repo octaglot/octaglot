@@ -56,8 +56,8 @@ export default function App() {
     });
   }
 
-  /* Efsane turu. Elmas, içeriğin hazır olduğu doğrulandıktan SONRA düşüyor —
-     ünitede soru kurulamazsa kullanıcı boşuna ödemesin. */
+  /* Legendary round. The gems are spent only AFTER the content is confirmed to
+     be ready, so nobody pays for a unit that cannot build any questions. */
   async function startLegendaryLesson(lesson: Lesson, unit: Unit) {
     if (profile.gems < LEGENDARY_COST) {
       setNotice(`Efsane için ${LEGENDARY_COST} elmas gerekiyor.`);
@@ -114,17 +114,17 @@ export default function App() {
     } else if (!result.failed) {
       await game.addXp(result.xp);
     }
-    // Başarısız derste de en uzun seri sayılır: görev "doğru" ölçüyor, "bitirme" değil.
+    // The longest streak counts even in a failed lesson: the quest measures
+    // "correct answers", not "completion".
     await game.bumpQuest('combo', result.bestCombo);
     setView({ name: 'result', result, lesson, unit: lastUnit });
   }
 
   if (!ready) {
     return (
-      /* Açılış. Logonun nabız gibi büyüyüp küçülmesi hem rahatsız ediyordu hem
-         de yanlış şeyi söylüyordu: marka bir yükleme göstergesi değil. Marka
-         bir kez içeri yerleşiyor, "yükleniyor" sinyalini altındaki belirsiz
-         ilerleme çubuğu taşıyor. */
+      /* Splash. Pulsing the logo was both irritating and said the wrong thing:
+         a brand is not a loading indicator. The mark settles in once, and the
+         indeterminate progress bar below it carries the "loading" signal. */
       <div style={{ height: '100%', display: 'grid', placeItems: 'center', background: 'var(--bg)' }}>
         <div style={{ display: 'grid', justifyItems: 'center', gap: 24 }}>
           <motion.div
@@ -159,7 +159,7 @@ export default function App() {
     );
   }
 
-  // Ders ve sonuç ekranları tüm pencereyi kaplar — dikkat dağılmasın.
+  // The lesson and result screens take the whole window, to avoid distraction.
   if (view.name === 'lesson') {
     return (
       <LessonScreen
@@ -210,8 +210,8 @@ export default function App() {
         }}
       >
         <NavItem icon={<Home />} label="Öğren" on={view.name === 'map'} onClick={() => setView({ name: 'map' })} />
-        {/* Tekrar modu görünür ama kilitli durur: hangi modların olduğu baştan
-            belli olsun, ne zaman açılacağı da kendi üstünde yazsın. */}
+        {/* Review mode is visible but locked: which modes exist should be clear
+            from the start, and each one states its own unlock condition. */}
         <NavItem
           icon={<Repeat />}
           label="Tekrar"
@@ -220,13 +220,14 @@ export default function App() {
           locked={dueCount === 0}
           lockedHint="Birkaç ders sonra açılır"
         />
-        {/* Fırtına havuzu bitmiş derslerin kelimelerinden kuruluyor; havuz
-            küçükken aynı çift üst üste gelir, o yüzden 20 kelimeden önce
-            kilitli duruyor. */}
+        {/* The storm pool is built from the words of completed lessons; while it
+            is small the same pair keeps reappearing, so it stays locked until
+            20 words are learned. */}
         <NavItem
           icon={<Bolt />}
           label="Fırtına"
-          /* Tekrar gibi tam ekran açılır; rayda etkin hâli hiç görünmez. */
+          /* Opens full screen like review, so its active state never shows in
+             the rail. */
           on={false}
           onClick={() => setView({ name: 'storm' })}
           locked={game.learnedWordCount < 20}
@@ -249,8 +250,8 @@ export default function App() {
               opacity: 0.86,
             }}
           >
-            {/* Kare kutucuğun dönmesi tuhaf duruyordu; dönen şey çıplak
-                işaret olunca düzgün bir bekleme göstergesi oluyor. */}
+            {/* Spinning the square tile looked odd; once the thing spinning is
+                the bare mark it reads as a proper waiting indicator. */}
             <motion.div
               animate={{ rotate: 360 }}
               transition={{ duration: 1.1, repeat: Infinity, ease: 'linear' }}
@@ -321,8 +322,8 @@ export default function App() {
             bottom: 24,
             left: '50%',
             transform: 'translateX(-50%)',
-            /* Her iki temada da koyu kalır: --ink kullanınca karanlıkta
-               açık zemin + beyaz yazı çıkıp okunmaz oluyordu. */
+            /* Stays dark in both themes: with --ink, dark mode produced a light
+               fill with white text and became unreadable. */
             background: 'var(--titlebar)',
             color: 'var(--titlebar-text)',
             border: '1px solid rgba(255,255,255,.08)',
@@ -397,9 +398,10 @@ function Chip({ icon, value, color, title }: { icon: React.ReactNode; value: num
   );
 }
 
-/* Rayın asıl işi: pencerenin tek görevi bugünkü derse girmek, o yüzden sıradaki
-   ders haritada aranmadan buradan başlatılabiliyor. Kart aynı zamanda rayın üst
-   yarısını dolduruyor — tek başına hedef kartı kalınca altında boşluk kalıyordu. */
+/* What the rail is really for: the window's one job is to get you into today's
+   lesson, so the next lesson can be started from here without hunting for it on
+   the map. The card also fills the upper half of the rail - with only the goal
+   card there, a gap opened up underneath. */
 function NextLessonCard({ onStart }: { onStart: (lesson: Lesson, unit: Unit) => void }) {
   const { lessons, units, done } = useGame();
   const next = lessons.find((l) => !done.has(l.id));
@@ -430,19 +432,19 @@ function NextLessonCard({ onStart }: { onStart: (lesson: Lesson, unit: Unit) => 
   );
 }
 
-/* macOS'ta pencere başlığı gizli (titleBarStyle: "Overlay"). Kendi çubuğumuzu
-   çizmezsek uygulama bir pencere değil, tam ekran bir web sayfası gibi okunuyor:
-   içerik kenardan kenara akıyor ve hiçbir şey "bu bir pencere" demiyor. Bu çubuk
-   o eksiği kapatıyor, pencereyi sürüklenebilir yapıyor ve seri/elmas/can
-   sayaçlarını sağ raydan alıp asıl yerine — uygulama başlığına — koyuyor.
-   Soldaki 84px trafik ışıklarına ayrılmış boşluk. */
+/* On macOS the window title is hidden (titleBarStyle: "Overlay"). Without
+   drawing our own bar the app reads as a full-screen web page rather than a
+   window: content runs edge to edge and nothing says "this is a window". This
+   bar fills that gap, makes the window draggable, and moves the streak/gem/heart
+   counters out of the right rail into where they belong - the app title.
+   The 84px on the left is space reserved for the traffic lights. */
 function TitleBar({ profile }: { profile: { streak: number; gems: number; hearts: number } }) {
   return (
     <header
-      /* "deep": alt ağacın herhangi bir yerinden sürüklenebilir. Çıplak
-         (değersiz) hâli yalnızca tıklama hedefi tam bu eleman olduğunda
-         çalışıyor, yani markanın ya da sayaçların üstünden sürükleyince
-         hiçbir şey olmuyordu. Butonlar "deep" ile de tıklanabilir kalır. */
+      /* "deep": draggable from anywhere in the subtree. The bare (valueless)
+         form only works when the click target is exactly this element, so
+         dragging from the mark or the counters did nothing. Buttons stay
+         clickable under "deep" as well. */
       data-tauri-drag-region="deep"
       style={{
         height: 56,
@@ -454,10 +456,10 @@ function TitleBar({ profile }: { profile: { streak: number; gems: number; hearts
         background: 'var(--titlebar)',
       }}
     >
-      {/* macOS başlığı ortalar; ikon+ad sola yaslıyken pencere Windows gibi
-          okunuyordu. Mutlak konum, soldaki trafik ışıkları markayı kaydırmasın
-          diye — çubuk sürükleme alanı olduğu için işaretçi olaylarını da
-          markadan geçiriyoruz. */}
+      {/* macOS centers the title; with the icon and name pinned left, the window
+          read as Windows. Absolute positioning keeps the traffic lights from
+          shifting the mark - and since the bar is a drag region, we let pointer
+          events pass through the mark too. */}
       <div
         style={{
           position: 'absolute',
@@ -479,9 +481,10 @@ function TitleBar({ profile }: { profile: { streak: number; gems: number; hearts
   );
 }
 
-/* Günlük hedef ile maskot ayrı iki kartken sağ rayın altında kocaman bir boşluk
-   kalıyordu. İkisi tek kartta birleşti: hedef çubuğu, Okta'nın çevresini saran
-   bir halkaya dönüştü — ilerleme okunurken maskot da onun içinde duruyor. */
+/* With the daily goal and the mascot as two separate cards, a large gap opened
+   at the bottom of the right rail. They were merged into one card: the goal bar
+   became a ring wrapped around Okta - you read the progress and the mascot sits
+   inside it. */
 function GoalCard({
   todayXp,
   goal,
@@ -519,9 +522,10 @@ function GoalCard({
             transition={{ duration: 0.8, ease: 'easeOut' }}
           />
         </svg>
-        {/* Halkanın iç çapı: 2 × (R − çizgi/2) = 139. Maskot `fit="circle"` ile
-            kutusunun iç teğet dairesine sığdığı için size doğrudan bu çap
-            olabilir; sevinip zıpladığında da halkayı kesmez. */}
+        {/* Inner diameter of the ring: 2 * (R - stroke/2) = 139. With
+            `fit="circle"` the mascot fits its box's inscribed circle, so size
+            can be that diameter directly; it will not cut the ring even when it
+            bounces with joy. */}
         <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center' }}>
           <Mascot mood={hearts === 0 ? 'sad' : done ? 'cheer' : 'idle'} size={2 * (R - 4.5)} fit="circle" />
         </div>
@@ -546,7 +550,8 @@ function GoalCard({
   );
 }
 
-/* Rayın altını çapalar — yoksa kartların altında dipsiz bir boşluk kalıyor. */
+/* Anchors the bottom of the rail - without it a bottomless gap sits under the
+   cards. */
 function RailFooter() {
   const { done, lessons, units, profile } = useGame();
   const unitsDone = units.filter((u) => lessons.filter((l) => l.unit_id === u.id).every((l) => done.has(l.id))).length;
@@ -606,8 +611,9 @@ function Profile() {
               border: '3px solid var(--brand)',
             }}
           >
-            {/* 88 − 2×3 kenarlık = 82 iç çap. `overflow: hidden` kaldırıldı:
-                kırpmayı gizlemek yerine çizim çerçeveye sığdırılıyor. */}
+            {/* 88 - 2x3 border = 82 inner diameter. `overflow: hidden` was
+                removed: rather than hiding the clipping, the artwork is fitted
+                to the frame. */}
             <Mascot mood="idle" size={82} fit="circle" />
           </div>
           <div>
@@ -648,7 +654,8 @@ function Profile() {
           <QuestCard />
         </div>
 
-        {/* Maskotun çizimi Twemoji'den geliyor; CC-BY 4.0 görünür atıf istiyor. */}
+        {/* The mascot artwork comes from Twemoji; CC-BY 4.0 requires visible
+            attribution. */}
         <p
           style={{
             marginTop: 28,

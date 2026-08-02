@@ -3,8 +3,9 @@ import { useGame } from '../lib/store';
 import { isComplete, questText, QUEST_REWARD } from '../lib/quests';
 import { Gem, Target } from './Icons';
 
-/* Günlük görevler. Ödül elle alınıyor: elmasın sessizce hesaba geçmesi fark
-   edilmiyor, "Al" düğmesi görevin bittiğini de duyuruyor. */
+/* Daily quests. The reward is claimed manually: gems landing silently in the
+   balance go unnoticed, whereas the claim button also announces that the quest
+   is done. */
 
 export function QuestCard() {
   const { quests, claimQuest } = useGame();

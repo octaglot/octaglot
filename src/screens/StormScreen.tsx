@@ -17,18 +17,18 @@ import {
 } from '../lib/storm';
 import type { Word } from '../lib/types';
 
-/* Ders değil arcade: can harcanmaz, yanlış cevap süreden yer. Sahnedeki her
-   kelime çifti çözülür çözülmez yerine yenisi gelir — ekran hiç boşalmaz,
-   duraklama hissi oluşmaz. */
+/* Arcade, not a lesson: no hearts are spent and a wrong answer eats into the
+   clock. Every pair on stage is replaced the moment it is solved - the screen
+   never empties and never feels like it pauses. */
 
 type Phase = 'loading' | 'play' | 'over';
 
 export function StormScreen({ onQuit }: { onQuit: () => void }) {
   const { lessons, done, dueWordIds, reviewWord, recordStorm, stormBest, stormRunsToday } = useGame();
 
-  /* Tur başındaki değerler: `recordStorm` ikisini de güncelliyor, sonuç ekranı
-     canlı store'a bakarsa "rekor kırdın mı" sorusunu kendi yazdığı değere
-     sorar. Bir kez yakalanıp sabit tutuluyorlar. */
+  /* Values as of the start of the round: `recordStorm` updates both, so if the
+     result screen read the live store it would ask "did you beat the record"
+     against the value it had just written. They are captured once and held. */
   const [bestAtStart] = useState(stormBest);
   const [runsAtStart] = useState(stormRunsToday);
 
@@ -48,8 +48,8 @@ export function StormScreen({ onQuit }: { onQuit: () => void }) {
   const pool = useRef<Word[]>([]);
   const seen = useRef<Set<number>>(new Set());
 
-  /* Havuz bir kez kuruluyor; tur boyunca sabit kalması gerekiyor, yoksa her
-     çekimde sıralama değişir ve aynı kelime üst üste gelir. */
+  /* The pool is built once and has to stay fixed for the round; otherwise the
+     ordering changes on every draw and the same word keeps coming up. */
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -69,7 +69,7 @@ export function StormScreen({ onQuit }: { onQuit: () => void }) {
     };
   }, []);
 
-  // Geri sayım. Süre bitince tur kapanır.
+  // Countdown. The round closes when the clock runs out.
   useEffect(() => {
     if (phase !== 'play') return;
     const t = setInterval(() => setSeconds((s) => Math.max(0, s - 1)), 1000);
@@ -87,9 +87,9 @@ export function StormScreen({ onQuit }: { onQuit: () => void }) {
   const byId = useMemo(() => new Map(stage.map((w) => [w.id, w])), [stage]);
 
   function replace(id: number) {
-    /* Çözülen çift sahneden çıkıyor, yerine havuzdan yenisi geliyor. Yeni
-       kelime iki sütuna da rastgele bir yere giriyor ki göz alışkanlığı
-       oluşmasın. */
+    /* A solved pair leaves the stage and a fresh one comes in from the pool.
+       The new word is inserted at a random position in both columns so the eye
+       cannot settle into a habit. */
     const next = stormDraw(pool.current, stage.map((w) => w.id), seen.current, 1)[0];
     setStage((st) => {
       const rest = st.filter((w) => w.id !== id);
@@ -146,8 +146,8 @@ export function StormScreen({ onQuit }: { onQuit: () => void }) {
 
   if (phase === 'over') {
     const record = score > bestAtStart;
-    /* XP çıkmamasının iki ayrı sebebi var; ikisini aynı cümleyle geçiştirmek
-       yanlış bilgi veriyordu. */
+    /* There are two distinct reasons XP is withheld; covering both with the
+       same sentence gave misleading information. */
     const xpNote =
       earnedXp > 0
         ? `+${earnedXp} XP`
@@ -199,8 +199,8 @@ export function StormScreen({ onQuit }: { onQuit: () => void }) {
         >
           <Close size={20} />
         </button>
-        {/* Süre çubuğu son 10 saniyede kırmızıya döner — sayıya bakmadan da
-            aciliyet okunsun. */}
+        {/* The timer bar turns red in the last 10 seconds, so the urgency reads
+            without looking at the number. */}
         <div style={{ flex: 1, height: 16, background: 'var(--line)', borderRadius: 'var(--r-pill)' }}>
           <motion.div
             animate={{ width: `${pct}%` }}
@@ -257,7 +257,7 @@ export function StormScreen({ onQuit }: { onQuit: () => void }) {
   );
 }
 
-/** Yeni kartı listeye rastgele bir yere sokar — hep sona eklenirse göz alışır. */
+/** Inserts a new card at a random position - always appending would let the eye adapt. */
 function insertRandom(ids: number[], id: number): number[] {
   const at = Math.floor(Math.random() * (ids.length + 1));
   return [...ids.slice(0, at), id, ...ids.slice(at)];

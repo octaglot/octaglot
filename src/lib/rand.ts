@@ -1,6 +1,6 @@
-/* Rastgelelik tek yerde toplanıyor: fırtına ve görev modülleri `generate.ts`'i
-   import edemiyor — o dosya `db.ts` üzerinden Tauri eklentisini çekiyor ve
-   Node testinde yüklenmiyor. */
+/* Randomness is collected in one place: the storm and quest modules cannot
+   import `generate.ts` - that file pulls in the Tauri plugin through `db.ts`
+   and will not load under a Node test. */
 
 export function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -13,8 +13,8 @@ export function shuffle<T>(arr: T[]): T[] {
 
 export const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
 
-/* Tohumlu üreteç: günlük görevlerin gün içinde sabit kalması için gerekiyor.
-   mulberry32 — 32 bitlik durum, kısa periyot ama bu iş için fazlasıyla yeterli. */
+/* Seeded generator: needed so the daily quests stay fixed through the day.
+   mulberry32 - 32 bits of state, short period, but more than enough here. */
 export function mulberry32(seed: number): () => number {
   let a = seed >>> 0;
   return () => {

@@ -35,7 +35,7 @@ export type Sentence = {
   lesson_id: number;
 };
 
-/* Alıştırma türleri — Duolingo'nun ders içi çeşitliliğini karşılar. */
+/* Exercise kinds - these cover Duolingo's in-lesson variety. */
 export type Exercise =
   | { kind: 'wordBank'; sentence: Sentence; bank: string[]; answer: string[] }
   | { kind: 'typeTr'; sentence: Sentence }
@@ -48,6 +48,7 @@ export type Exercise =
 
 export type ExerciseKind = Exercise['kind'];
 
-/* Ders kipi. Efsane, bitmiş bir dersin zorlaştırılmış hâli: can yerine üç hata
-   hakkı, yalnızca üretim gerektiren alıştırmalar, ünite genelinden sorular. */
+/* Lesson mode. Legendary is a hardened version of a completed lesson: three
+   mistakes instead of hearts, production-only exercises, questions drawn from
+   the whole unit. */
 export type LessonMode = 'normal' | 'legendary';

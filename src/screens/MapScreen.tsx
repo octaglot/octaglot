@@ -5,12 +5,12 @@ import { Mascot } from '../components/Mascot';
 import { Crown, Lock, Play, Star } from '../components/Icons';
 import type { Lesson, Unit } from '../lib/types';
 
-/* Duolingo'nun patikası: üniteler dikey akar, dersler zigzag düğümlerdir.
-   Bir ders ancak kendinden önceki bitince açılır. */
+/* Duolingo's path: units flow vertically and lessons are zigzag nodes. A
+   lesson only unlocks once the one before it is finished. */
 
-/* Bitmiş ders iki şey yapabilir: tekrar oynanır ya da efsaneye girilir. Seçim
-   düğümün altında küçük bir balonda açılıyor — bu kadar küçük bir karar için
-   ayrı ekran fazla. */
+/* A finished lesson can do two things: be replayed, or be entered at legendary
+   level. The choice opens in a small bubble under the node - a separate screen
+   would be too much for a decision this small. */
 function DoneMenu({
   passed,
   onRetry,
@@ -59,20 +59,21 @@ const UNIT_COLORS = [
   ['var(--deep-rose)', '#94062a'],
 ];
 
-/* Patika deseni ünite içindeki ders sırasına göre uygulanır (global sıraya
-   göre değil) — böylece her ünite ortadan başlar ve simetrik salınır. */
+/* The path pattern follows the lesson index within its unit (not the global
+   index), so every unit starts from the middle and swings symmetrically. */
 const OFFSETS = [0, 72, 0, -72];
 
-/* Patika geometrisi düğüm ölçüleriyle birebir aynı olmak zorunda — düğüm
-   yüksekliği, aralık ve üst boşluk tek yerden gelsin. */
+/* The path geometry has to match the node metrics exactly, so node height,
+   spacing and top padding all come from one place. */
 const NODE_H = 68;
 const GAP = 30;
 const TOP_PAD = 12;
 const PATH_W = 240; // en geniş salınım (72*2) + düğüm genişliği kadar
 
-/* Düğümler bağlantısız durunca harita dağınık okunuyordu. Bu şerit ardışık
-   dersleri birleştiriyor: geçilen bölüm ünitenin renginde, kilitli bölüm soluk.
-   Kalınlık ve yuvarlak uçlar logodaki halkalarla aynı çizgi dilinden. */
+/* With the nodes standing unconnected, the map read as scattered. This ribbon
+   joins consecutive lessons: the completed stretch takes the unit's color and
+   the locked stretch stays pale. Its weight and round caps speak the same line
+   language as the rings in the logo. */
 function LessonPath({ count, doneUpTo, color }: { count: number; doneUpTo: number; color: string }) {
   if (count < 2) return null;
   const cy = (i: number) => TOP_PAD + i * (NODE_H + GAP) + NODE_H / 2;
@@ -93,7 +94,7 @@ function LessonPath({ count, doneUpTo, color }: { count: number; doneUpTo: numbe
         const x2 = cx(i + 1);
         const y2 = cy(i + 1);
         const bend = (y2 - y1) / 2;
-        // i. ders bittiyse ondan çıkan şerit de "geçilmiş" sayılır
+        // If lesson i is done, the ribbon leaving it counts as completed too
         const travelled = i < doneUpTo;
         return (
           <path
@@ -119,7 +120,7 @@ export function MapScreen({
   onLegendary: (lesson: Lesson, unit: Unit) => void;
 }) {
   const { units, lessons, done, legendary } = useGame();
-  /* Bitmiş düğüme basınca hangi düğümün menüsünün açık olduğu. */
+  /* Which node's menu is open after tapping a finished node. */
   const [menuFor, setMenuFor] = useState<number | null>(null);
 
   const ordered = lessons;
@@ -166,7 +167,7 @@ export function MapScreen({
                 alignItems: 'center',
                 gap: GAP,
                 position: 'relative',
-                // İlk düğümün "BAŞLA" etiketi ünite başlığına girmesin.
+                // Keep the first node's start label out of the unit heading.
                 paddingTop: TOP_PAD,
               }}
             >
@@ -184,8 +185,8 @@ export function MapScreen({
                     style={{
                       transform: `translateX(${OFFSETS[li % OFFSETS.length]}px)`,
                       position: 'relative',
-                      /* Menü açık olan düğüm, kapatma katmanının (z 2) üstünde
-                         kalmalı; yoksa menüye basılamıyor. */
+                      /* The node with an open menu has to stay above the dismiss
+                         layer (z 2), otherwise the menu cannot be tapped. */
                       zIndex: menuFor === lesson.id ? 3 : 1,
                     }}
                   >
@@ -219,8 +220,8 @@ export function MapScreen({
                       animate={isOpen ? { y: [0, -6, 0] } : {}}
                       transition={isOpen ? { duration: 1.8, repeat: Infinity, ease: 'easeInOut' } : {}}
                       disabled={locked}
-                      /* Bitmiş ders iki şey yapabilir; hangisi olduğunu düğüm
-                         soruyor. Bitmemişse doğrudan başlar. */
+                      /* A finished lesson can do two things, and the node asks
+                         which. An unfinished one starts straight away. */
                       onClick={() =>
                         isDone ? setMenuFor(menuFor === lesson.id ? null : lesson.id) : onStart(lesson, unit)
                       }
@@ -231,9 +232,9 @@ export function MapScreen({
                         borderRadius: '50%',
                         border: 0,
                         background: locked ? 'var(--line)' : isDone ? 'var(--gold)' : c,
-                        /* Efsane halkası düğümden boşlukla ayrılıyor: bitmiş
-                           düğümün zemini zaten altın, ona bitişik altın bir
-                           kenarlık görünmez kalıyordu. */
+                        /* The legendary ring is separated from the node by a gap:
+                           a finished node is already filled with gold, so a gold
+                           border touching it stayed invisible. */
                         boxShadow: isLegendary
                           ? `0 6px 0 var(--gold-dark), 0 0 0 4px var(--surface), 0 0 0 7px var(--gold-dark)`
                           : `0 6px 0 ${locked ? 'var(--muted)' : isDone ? 'var(--gold-dark)' : cd}`,
@@ -275,7 +276,7 @@ export function MapScreen({
         );
       })}
 
-      {/* Menü açıkken boş bir yere basınca kapansın. */}
+      {/* Tapping empty space closes an open menu. */}
       {menuFor !== null && (
         <div
           onClick={() => setMenuFor(null)}

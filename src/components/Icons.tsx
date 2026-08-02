@@ -1,6 +1,6 @@
-/* Düz, tek renkli SVG ikonlar. Emoji yerine bunlar kullanılıyor: emoji
-   sistem fontuna göre 3B ve farklı stillerde çiziliyor, arayüzün düz
-   görsel diliyle çelişiyordu. */
+/* Flat, single-color SVG icons. These are used instead of emoji: depending on
+   the system font, emoji render in 3D and in varying styles, which clashed
+   with the flat visual language of the interface. */
 
 type P = { size?: number; color?: string };
 const box = (size: number) => ({ width: size, height: size, display: 'block' as const });

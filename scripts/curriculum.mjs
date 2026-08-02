@@ -1,6 +1,6 @@
-// Cıvıl müfredatı — 40 ünite, A1 → B1.
-// Her ünitenin `seeds` listesi tematik çekirdek kelimelerdir; derleyici bunları
-// frekans sırasına göre ek kelimelerle `targetWords` sayısına tamamlar.
+// The Octaglot curriculum - 40 units, A1 to B1.
+// Each unit's `seeds` list holds its thematic core words; the builder tops them
+// up to `targetWords` with further words in frequency order.
 
 export const CEFR_BANDS = [
   { level: 'A1', units: [1, 12] },
@@ -251,8 +251,8 @@ export const UNITS = [
   },
 ];
 
-// Frekans listesi altyazı korpusundan türetildiği için küfür ve konuşma
-// dolgusu içeriyor; bunlar ders kelimesi olmamalı.
+// The frequency list is derived from a subtitle corpus, so it contains
+// profanity and conversational filler; none of that belongs in a lesson.
 export const BLOCKLIST = new Set(`
 sex shit fuck fucking fucked fuckin damn goddamn ass asshole bitch bastard crap
 dick piss hell whore slut cunt
@@ -260,9 +260,9 @@ gonna wanna gotta lemme kinda sorta yep nope huh uh um em ya nah
 mr mrs ms st dr etc vs
 `.trim().split(/\s+/));
 
-// Çekimli biçimler kelime kartı olarak işe yaramaz ("went = go"). Otomatik
-// doldurmadan çıkarılır; ünite çekirdeklerinde geçerlerse (ör. 22. ünite
-// geçmiş zaman) OVERRIDES ile doğru karşılık verilir.
+// Inflected forms are useless as flashcards ("went = go"). They are excluded
+// from automatic filling; where they do appear in a unit's seeds (unit 22, past
+// tense, for example) OVERRIDES supplies the correct gloss.
 export const INFLECTED = new Set(`
 got won seen heard knew told done met brought tried
 men women children days times minutes needs looks
@@ -270,11 +270,11 @@ taking making doing going coming talking working trying telling living saying
 gone wanted used said came
 `.trim().split(/\s+/));
 
-// Wiktionary sayfa sırası çoğu kelimede doğru anlamı veriyor ama bazılarında
-// şaşırıyor (glass→cam, plane→yüzey), FreeDict yedeği de dağınık (ok→Oklahoma).
-// Bunlar elle düzeltilir.
+// Wiktionary's page order picks the right sense for most words but gets some
+// wrong (glass->cam, plane->yüzey), and the FreeDict fallback is messy
+// (ok->Oklahoma). Those are corrected by hand.
 export const OVERRIDES = {
-  // Temel işlev kelimeleri
+  // Core function words
   no: 'hayır', please: 'lütfen', yeah: 'evet', ok: 'tamam', okay: 'tamam',
   am: 'ben ...-im', is: 'o ...-dir', are: 'sen/siz ...-sin', be: 'olmak',
   do: 'yapmak', does: 'yapar', have: 'sahip olmak', has: 'sahip',
@@ -290,12 +290,12 @@ export const OVERRIDES = {
   least: 'en az', able: 'yapabilen', if: 'eğer', cause: 'sebep olmak',
   depend: 'bağlı olmak', clear: 'net, açık', sort: 'tür, çeşit',
 
-  // Geçmiş zaman (22. ünite)
+  // Past tense (unit 22)
   was: 'idi, -di', were: 'idiler, -diler', went: 'gitti', saw: 'gördü',
   did: 'yaptı', made: 'yaptı', said: 'söyledi', came: 'geldi', took: 'aldı',
   gave: 'verdi', found: 'buldu', thought: 'düşündü',
 
-  // Yanlış anlam seçilenler
+  // Words where the wrong sense was picked
   glass: 'bardak', chair: 'sandalye', room: 'oda', wall: 'duvar',
   plane: 'uçak', team: 'takım', sound: 'ses', fast: 'hızlı',
   engineer: 'mühendis', fork: 'çatal', bill: 'hesap, fatura',
