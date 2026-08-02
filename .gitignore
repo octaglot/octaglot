@@ -4,3 +4,7 @@ node_modules
 dist
 src-tauri/target
 .DS_Store
+
+# Agent working notes: plans and specs, not part of the product
+docs/superpowers/
+.claude/
