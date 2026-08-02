@@ -1,26 +1,58 @@
 # Octaglot
 
-A gamified app for learning English, explained in Turkish. It runs as a macOS
-desktop application and needs no internet connection.
+A gamified app for learning English, explained in Turkish. It runs as a desktop
+application on macOS and Windows.
 
 40 units · 160 lessons · 720 words · 4160 sentences · A1 → B1
 
-## Setup
+Lesson content ships inside the app and works offline. Pronunciation is the one
+exception: it streams from Google's TTS endpoint at press time and therefore
+needs a connection (see `src/lib/audio.ts`).
 
-The app builds to `Octaglot.app`:
+## Download
+
+Latest build, from [the releases page](https://github.com/octaglot/octaglot/releases/latest):
+
+| Platform | File |
+| --- | --- |
+| macOS · Apple Silicon | `Octaglot-macos-arm64.dmg` |
+| macOS · Intel | `Octaglot-macos-intel.dmg` |
+| Windows 10+ · 64-bit | `Octaglot-windows-x64-setup.exe` |
+
+The builds are unsigned, so both systems warn on first launch. On macOS,
+right-click the app and choose Open; on Windows, pick "More info" then "Run
+anyway".
+
+## Setup
 
 ```sh
 npm install
-npm run tauri build
+npm run tauri dev      # develop
+npm run tauri build    # bundle for the current platform
 ```
 
-Result: `src-tauri/target/release/bundle/macos/Octaglot.app`
+Bundles land under `src-tauri/target/release/bundle/` — `dmg/` on macOS,
+`nsis/` on Windows.
 
-While developing:
+## Cutting a release
 
-```sh
-npm run tauri dev
-```
+Releases are built by `.github/workflows/release.yml` and are triggered **only**
+by a version tag; ordinary pushes build nothing.
+
+1. Raise the version in all three manifests: `package.json`,
+   `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`.
+2. Commit, then tag and push:
+
+   ```sh
+   git tag -a v1.1.0 -m "Octaglot 1.1.0"
+   git push origin v1.1.0
+   ```
+
+The workflow refuses to build if the tag and the manifests disagree. It then
+opens a draft release, builds the three targets in parallel, uploads each under
+a fixed filename, and publishes the release only once all three succeed. The
+fixed filenames are what let the website link to `releases/latest/download/...`
+without being edited every time.
 
 ## How the content is generated
 
