@@ -127,7 +127,6 @@ class _LessonScreenState extends ConsumerState<LessonScreen> {
         _verdict = Verdict.wrong;
         if (_legendary) _mistakes++;
       });
-      if (!_legendary && widget.mode != LessonMode.review) await game.loseHeart();
       _maybeFail();
     }
     if (ex.word != null && ex.kind != ExKind.match && ref.read(settingsProvider).autoSpeak) {
@@ -138,9 +137,7 @@ class _LessonScreenState extends ConsumerState<LessonScreen> {
   }
 
   void _maybeFail() {
-    final out = _legendary
-        ? _mistakes >= legendaryMistakes
-        : ref.read(gameProvider).profile.hearts <= 0 && widget.mode == LessonMode.normal;
+    final out = _legendary && _mistakes >= legendaryMistakes;
     if (!out || _ending) return;
     _ending = true;
     Future.delayed(const Duration(milliseconds: 1400), () {
@@ -218,7 +215,6 @@ class _LessonScreenState extends ConsumerState<LessonScreen> {
   @override
   Widget build(BuildContext context) {
     final c = context.c;
-    final hearts = ref.watch(gameProvider.select((s) => s.profile.hearts));
     final ex = _ex;
     final progress = _i / widget.exercises.length;
     final locked = _verdict != Verdict.none;
@@ -241,17 +237,17 @@ class _LessonScreenState extends ConsumerState<LessonScreen> {
                     const SizedBox(width: 12),
                     Expanded(child: PillBar(value: progress)),
                     const SizedBox(width: 12),
-                    if (widget.mode != LessonMode.review)
+                    if (_legendary)
                       Container(
                         padding: const EdgeInsets.fromLTRB(8, 5, 12, 5),
-                        decoration: BoxDecoration(color: _legendary ? c.goldWash : c.dangerWash, borderRadius: BorderRadius.circular(999)),
+                        decoration: BoxDecoration(color: c.goldWash, borderRadius: BorderRadius.circular(999)),
                         child: Row(
                           children: [
-                            OIcon(_legendary ? OI.crown : OI.heart, size: 20, color: _legendary ? c.gold : c.danger),
+                            OIcon(OI.crown, size: 20, color: c.gold),
                             const SizedBox(width: 4),
                             Text(
-                              '${_legendary ? legendaryMistakes - _mistakes : hearts}',
-                              style: ts(T.body, w: FontWeight.w900, color: _legendary ? c.goldText : c.dangerText),
+                              '${legendaryMistakes - _mistakes}',
+                              style: ts(T.body, w: FontWeight.w900, color: c.goldText),
                             ),
                           ],
                         ),

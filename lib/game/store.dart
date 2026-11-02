@@ -13,6 +13,7 @@ const heartRefillMinutes = 30;
 const refillCost = 50;
 const legendaryCost = 30;
 const legendaryXp = 60;
+const reviewMinWords = 4;
 
 String dayKey([DateTime? d]) {
   final x = d ?? DateTime.now();

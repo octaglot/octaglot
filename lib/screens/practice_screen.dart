@@ -25,7 +25,7 @@ class PracticeScreen extends ConsumerWidget {
         Text('Pratik', style: ts(T.display, w: FontWeight.w900)),
         const SizedBox(height: 4),
         Text(
-          '$learned kelime öğrendin · ${s.dueCount} kelime tekrar bekliyor',
+          s.dueCount >= reviewMinWords ? '$learned kelime öğrendin · ${s.dueCount} kelime tekrar bekliyor' : '$learned kelime öğrendin',
           style: ts(T.small, w: FontWeight.w700, color: c.ink2),
         ),
         const SizedBox(height: 20),
@@ -36,7 +36,7 @@ class PracticeScreen extends ConsumerWidget {
           body: s.dueCount > 0
               ? 'Aralıklı tekrar: zamanı gelen ${s.dueCount} kelime.'
               : 'Zamanı gelen kelime yok. Bildiklerin yerinde duruyor.',
-          locked: s.dueCount < 4,
+          locked: s.dueCount < reviewMinWords,
           lockedHint: 'Birkaç ders sonra açılır',
           onTap: () => startReview(context, ref),
         ),

@@ -23,13 +23,6 @@ Route<T> fullScreen<T>(Widget page) => PageRouteBuilder<T>(
 );
 
 Future<void> startLesson(BuildContext context, WidgetRef ref, Lesson lesson) async {
-  final game = ref.read(gameProvider.notifier);
-  await game.refreshHearts();
-  if (!context.mounted) return;
-  if (ref.read(gameProvider).profile.hearts <= 0) {
-    showNotice(context, 'Canların bitti. Yarım saatte bir yenilenir ya da elmasla doldurabilirsin.');
-    return;
-  }
   final content = ref.read(contentProvider);
   final unit = content.units[lesson.unitIndex];
   final plan = buildLesson(content, lesson, firstTime: !ref.read(gameProvider).done.containsKey(lesson.id));

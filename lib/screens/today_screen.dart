@@ -43,7 +43,7 @@ class TodayScreen extends ConsumerWidget {
                       curve: Curves.easeOut,
                       builder: (_, v, _) => CustomPaint(size: const Size.square(168), painter: _Ring(v, c.line, done ? c.success : c.gold)),
                     ),
-                    Mascot(mood: p.hearts == 0 ? Mood.sad : (done ? Mood.cheer : Mood.idle), size: 2 * (74 - 4.5), circle: true),
+                    Mascot(mood: done ? Mood.cheer : Mood.idle, size: 2 * (74 - 4.5), circle: true),
                   ],
                 ),
               ),
@@ -64,9 +64,7 @@ class TodayScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                p.hearts == 0
-                    ? 'Canların bitti, biraz dinlen.'
-                    : done
+                done
                     ? 'Günlük hedefi tamamladın.'
                     : p.streak > 0
                     ? '${p.streak} gündür ara vermedin.'
@@ -99,30 +97,6 @@ class TodayScreen extends ConsumerWidget {
           ),
         const SizedBox(height: 14),
         const QuestCard(),
-        if (p.hearts < maxHearts) ...[
-          const SizedBox(height: 14),
-          Panel(
-            title: 'Canların eksik',
-            titleIcon: OIcon(OI.heart, size: 18, color: c.danger),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Canlar yarım saatte bir dolar. Beklemek istemezsen elmasla doldurabilirsin.',
-                  style: ts(T.small, w: FontWeight.w700, color: c.ink2),
-                ),
-                const SizedBox(height: 12),
-                PushButton(
-                  label: '$refillCost · Canları doldur',
-                  icon: OI.gem,
-                  kind: BtnKind.sky,
-                  full: true,
-                  onTap: p.gems >= refillCost ? () => game.refillHearts() : null,
-                ),
-              ],
-            ),
-          ),
-        ],
       ],
     );
   }

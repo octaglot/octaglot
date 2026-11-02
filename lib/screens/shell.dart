@@ -35,7 +35,7 @@ class _ShellState extends ConsumerState<Shell> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) ref.read(gameProvider.notifier).refreshHearts();
+    if (state == AppLifecycleState.resumed) ref.read(gameProvider.notifier).refreshDue();
   }
 
   @override
@@ -64,8 +64,6 @@ class _ShellState extends ConsumerState<Shell> with WidgetsBindingObserver {
                       _Chip(icon: OI.flame, value: p.streak, color: c.accent, label: 'Gün serisi'),
                       const SizedBox(width: 14),
                       _Chip(icon: OI.gem, value: p.gems, color: c.sky, label: 'Elmas'),
-                      const SizedBox(width: 14),
-                      _Chip(icon: OI.heart, value: p.hearts, color: c.danger, label: 'Can'),
                     ],
                   ),
                 ),
@@ -89,7 +87,7 @@ class _ShellState extends ConsumerState<Shell> with WidgetsBindingObserver {
             child: Row(
               children: [
                 _Tab(icon: OI.home, label: 'Öğren', on: _tab == 0, onTap: () => _go(0)),
-                _Tab(icon: OI.repeat, label: 'Pratik', on: _tab == 1, onTap: () => _go(1), badge: due > 0 ? '$due' : null),
+                _Tab(icon: OI.repeat, label: 'Pratik', on: _tab == 1, onTap: () => _go(1), badge: due >= reviewMinWords ? '$due' : null),
                 _Tab(icon: OI.target, label: 'Görevler', on: _tab == 2, onTap: () => _go(2), badge: claimable > 0 ? '$claimable' : null),
                 _Tab(icon: OI.person, label: 'Profil', on: _tab == 3, onTap: () => _go(3)),
               ],
